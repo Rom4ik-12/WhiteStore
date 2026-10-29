@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Базовые правила для всего приложения: стандартные доверенные сертификаты Android -->
+    <base-config>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- Изоляция сертификатов Минцифры: используются ТОЛЬКО для доменов RuStore -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">rustore.ru</domain>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="@raw/ministry_of_digital_root" />
+            <certificates src="@raw/ministry_of_digital_sub_2024" />
+        </trust-anchors>
+    </domain-config>
+</network-security-config>
