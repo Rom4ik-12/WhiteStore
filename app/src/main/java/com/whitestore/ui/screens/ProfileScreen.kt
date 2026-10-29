@@ -58,6 +58,13 @@ fun ProfileScreen(
     onNavigateToDetail: (String) -> Unit
 ) {
     val context = LocalContext.current
+    val appVersionName = remember {
+        try {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0.1"
+        } catch (e: Exception) {
+            "1.0.1"
+        }
+    }
     val packageTrigger by installer.packageUpdateTrigger.collectAsState()
     val availableUpdates by viewModel.availableUpdates.collectAsState()
     val isCheckingUpdates by viewModel.isCheckingUpdates.collectAsState()
@@ -443,7 +450,7 @@ fun ProfileScreen(
                                 }
                                 else -> {
                                     Text(
-                                        text = "Версия 1.0.0 • Актуальная",
+                                        text = "Версия $appVersionName • Актуальная",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.outline
                                     )
@@ -560,6 +567,7 @@ fun UpdatesScreen(
     onBack: () -> Unit,
     onNavigateToDetail: (String) -> Unit
 ) {
+    val packageTrigger by installer.packageUpdateTrigger.collectAsState()
     val availableUpdates by viewModel.availableUpdates.collectAsState()
     val isCheckingUpdates by viewModel.isCheckingUpdates.collectAsState()
     val installStates by installer.installState.collectAsState()
@@ -882,7 +890,7 @@ fun SettingsScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "WhiteStore v1.0.0 • Material Expressive",
+                    text = "WhiteStore v1.0.1 • Material Expressive",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.outline
                 )

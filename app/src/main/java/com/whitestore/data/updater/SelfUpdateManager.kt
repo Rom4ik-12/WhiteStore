@@ -38,7 +38,13 @@ class SelfUpdateManager(
 ) {
     private val TAG = "SelfUpdateManager"
     private val GITHUB_REPO = "Rom4ik-12/WhiteStore"
-    private val CURRENT_VERSION = "1.0.0"
+    private val CURRENT_VERSION: String
+        get() = try {
+            val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+            pInfo.versionName ?: "1.0.1"
+        } catch (e: Exception) {
+            "1.0.1"
+        }
 
     private val json = Json {
         ignoreUnknownKeys = true
