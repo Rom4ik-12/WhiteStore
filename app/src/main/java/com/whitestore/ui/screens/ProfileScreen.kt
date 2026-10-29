@@ -479,16 +479,22 @@ fun ProfileScreen(
                                 )
                             }
                             is SelfUpdateState.Checking -> {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    strokeWidth = 2.5.dp
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .height(34.dp)
+                                        .padding(horizontal = 14.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        strokeWidth = 2.5.dp
+                                    )
+                                }
                             }
                             else -> {
                                 FilledTonalButton(
                                     onClick = {
                                         viewModel.checkSelfUpdate()
-                                        Toast.makeText(context, "Проверка обновлений WhiteStore...", Toast.LENGTH_SHORT).show()
                                     },
                                     shape = RoundedCornerShape(14.dp),
                                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)

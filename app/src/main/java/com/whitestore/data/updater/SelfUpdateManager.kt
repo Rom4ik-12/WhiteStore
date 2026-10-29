@@ -56,6 +56,7 @@ class SelfUpdateManager(
 
     suspend fun checkForUpdates(): SelfUpdateState = withContext(Dispatchers.IO) {
         _updateState.value = SelfUpdateState.Checking
+        val startTime = System.currentTimeMillis()
         try {
             val url = "https://api.github.com/repos/$GITHUB_REPO/releases/latest"
             val request = Request.Builder()
@@ -65,6 +66,13 @@ class SelfUpdateManager(
                 .build()
 
             val response = client.newCall(request).execute()
+
+            // Ensure spinner is visible at least 600ms so user clearly perceives the check
+            val elapsed = System.currentTimeMillis() - startTime
+            if (elapsed < 600) {
+                kotlinx.coroutines.delay(600 - elapsed)
+            }
+
             if (!response.isSuccessful) {
                 if (response.code == 404) {
                     _updateState.value = SelfUpdateState.UpToDate
@@ -96,6 +104,10 @@ class SelfUpdateManager(
             _updateState.value = SelfUpdateState.UpToDate
             SelfUpdateState.UpToDate
         } catch (e: Exception) {
+            val elapsed = System.currentTimeMillis() - startTime
+            if (elapsed < 600) {
+                kotlinx.coroutines.delay(600 - elapsed)
+            }
             Log.e(TAG, "Error checking self-update", e)
             val state = SelfUpdateState.Error(e.message ?: "Сетевая ошибка")
             _updateState.value = state

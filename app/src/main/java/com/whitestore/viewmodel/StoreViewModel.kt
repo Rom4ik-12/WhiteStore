@@ -226,6 +226,7 @@ class StoreViewModel(
     fun checkUpdates() {
         viewModelScope.launch {
             _isCheckingUpdates.value = true
+            val startTime = System.currentTimeMillis()
             val updatesFound = mutableListOf<AppUpdateInfo>()
 
             try {
@@ -286,6 +287,10 @@ class StoreViewModel(
             } catch (e: Exception) {
                 Log.e(TAG, "Error checking updates", e)
             } finally {
+                val elapsed = System.currentTimeMillis() - startTime
+                if (elapsed < 600) {
+                    delay(600 - elapsed)
+                }
                 _availableUpdates.value = updatesFound
                 _isCheckingUpdates.value = false
                 _hasCheckedUpdates.value = true
