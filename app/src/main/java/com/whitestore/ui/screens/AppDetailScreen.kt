@@ -2,10 +2,11 @@ package com.whitestore.ui.screens
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -23,9 +24,10 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.whitestore.data.installer.AppInstaller
 import com.whitestore.data.installer.InstallState
+import com.whitestore.ui.components.FullscreenImageViewer
 import com.whitestore.viewmodel.StoreViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AppDetailScreen(
     packageName: String,
@@ -46,6 +48,17 @@ fun AppDetailScreen(
         installer.isAppInstalled(packageName)
     }
     val installState = installStates[packageName] ?: InstallState.Idle
+
+    var selectedImageIndex by remember { mutableStateOf<Int?>(null) }
+
+    if (selectedImageIndex != null && detail != null) {
+        val imageUrls = detail!!.fileUrls.map { it.fileUrl }
+        FullscreenImageViewer(
+            images = imageUrls,
+            initialIndex = selectedImageIndex ?: 0,
+            onDismiss = { selectedImageIndex = null }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -69,7 +82,7 @@ fun AppDetailScreen(
                     .padding(innerPadding),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator()
+                ContainedLoadingIndicator()
             }
         } else if (detail != null) {
             val app = detail!!
@@ -232,9 +245,8 @@ fun AppDetailScreen(
                                 modifier = Modifier.fillMaxWidth().height(54.dp),
                                 shape = RoundedCornerShape(20.dp)
                             ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    strokeWidth = 2.5.dp,
+                                LoadingIndicator(
+                                    modifier = Modifier.size(24.dp),
                                     color = MaterialTheme.colorScheme.onPrimary
                                 )
                                 Spacer(modifier = Modifier.width(12.dp))
@@ -242,47 +254,68 @@ fun AppDetailScreen(
                             }
                         }
                         is InstallState.Downloading -> {
-                            Button(
-                                onClick = {},
-                                modifier = Modifier.fillMaxWidth().height(54.dp),
-                                shape = RoundedCornerShape(20.dp)
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                if (installState.progress > 0f) {
-                                    CircularProgressIndicator(
-                                        progress = { installState.progress },
-                                        modifier = Modifier.size(20.dp),
-                                        strokeWidth = 2.5.dp,
+                                Button(
+                                    onClick = {},
+                                    modifier = Modifier.fillMaxWidth().height(54.dp),
+                                    shape = RoundedCornerShape(20.dp)
+                                ) {
+                                    LoadingIndicator(
+                                        modifier = Modifier.size(24.dp),
                                         color = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    val pct = if (installState.progress > 0f) "${(installState.progress * 100).toInt()}%" else "Загрузка..."
+                                    val downloadedMb = installState.downloadedBytes / (1024.0 * 1024.0)
+                                    val totalMb = installState.totalBytes / (1024.0 * 1024.0)
+                                    val sizeText = if (totalMb > 0) String.format("(%.1f / %.1f МБ)", downloadedMb, totalMb) else ""
+                                    Text("Скачивание $pct $sizeText", style = MaterialTheme.typography.titleMedium)
+                                }
+
+                                // Official M3 Expressive Linear Wavy Progress Indicator
+                                if (installState.progress > 0f) {
+                                    LinearWavyProgressIndicator(
+                                        progress = { installState.progress },
+                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                                        color = MaterialTheme.colorScheme.primary,
+                                        trackColor = MaterialTheme.colorScheme.surfaceContainerHigh
                                     )
                                 } else {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(20.dp),
-                                        strokeWidth = 2.5.dp,
-                                        color = MaterialTheme.colorScheme.onPrimary
+                                    LinearWavyProgressIndicator(
+                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                                        color = MaterialTheme.colorScheme.primary,
+                                        trackColor = MaterialTheme.colorScheme.surfaceContainerHigh
                                     )
                                 }
-                                Spacer(modifier = Modifier.width(12.dp))
-                                val pct = if (installState.progress > 0f) "${(installState.progress * 100).toInt()}%" else "Загрузка..."
-                                val downloadedMb = installState.downloadedBytes / (1024.0 * 1024.0)
-                                val totalMb = installState.totalBytes / (1024.0 * 1024.0)
-                                val sizeText = if (totalMb > 0) String.format("(%.1f / %.1f МБ)", downloadedMb, totalMb) else ""
-                                Text("Скачивание $pct $sizeText", style = MaterialTheme.typography.titleMedium)
                             }
                         }
                         is InstallState.Extracting -> {
-                            Button(
-                                onClick = {},
-                                enabled = false,
-                                modifier = Modifier.fillMaxWidth().height(54.dp),
-                                shape = RoundedCornerShape(20.dp)
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    strokeWidth = 2.5.dp,
-                                    color = MaterialTheme.colorScheme.onPrimary
+                                Button(
+                                    onClick = {},
+                                    enabled = false,
+                                    modifier = Modifier.fillMaxWidth().height(54.dp),
+                                    shape = RoundedCornerShape(20.dp)
+                                ) {
+                                    LoadingIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text("Распаковка APK...", style = MaterialTheme.typography.titleMedium)
+                                }
+
+                                LinearWavyProgressIndicator(
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                                    color = MaterialTheme.colorScheme.secondary,
+                                    trackColor = MaterialTheme.colorScheme.surfaceContainerHigh
                                 )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text("Распаковка APK...", style = MaterialTheme.typography.titleMedium)
                             }
                         }
                         is InstallState.ReadyToInstall -> {
@@ -347,7 +380,7 @@ fun AppDetailScreen(
                             LazyRow(
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                items(app.fileUrls) { screenshot ->
+                                itemsIndexed(app.fileUrls) { index, screenshot ->
                                     AsyncImage(
                                         model = screenshot.fileUrl,
                                         contentDescription = "Скриншот",
@@ -355,7 +388,10 @@ fun AppDetailScreen(
                                             .height(280.dp)
                                             .width(160.dp)
                                             .clip(RoundedCornerShape(16.dp))
-                                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                                            .clickable {
+                                                selectedImageIndex = index
+                                            },
                                         contentScale = ContentScale.Crop
                                     )
                                 }

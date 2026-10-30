@@ -23,9 +23,10 @@ import coil3.compose.AsyncImage
 import com.whitestore.data.installer.AppInstaller
 import com.whitestore.data.model.SuggestItem
 import com.whitestore.ui.components.AppCardItem
+import com.whitestore.ui.components.ExpressiveConnectedCategoryChip
 import com.whitestore.viewmodel.StoreViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MainCatalogScreen(
     viewModel: StoreViewModel,
@@ -126,7 +127,7 @@ fun MainCatalogScreen(
                 }
             }
 
-            // Category quick tags
+            // Category quick tags with connected morphing style
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -136,11 +137,10 @@ fun MainCatalogScreen(
             ) {
                 items(popularTags) { tag ->
                     val isSelected = uiState.selectedCategory == tag
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = { viewModel.selectCategory(if (isSelected) "" else tag) },
-                        label = { Text(tag) },
-                        shape = RoundedCornerShape(16.dp)
+                    ExpressiveConnectedCategoryChip(
+                        text = tag,
+                        isSelected = isSelected,
+                        onClick = { viewModel.selectCategory(if (isSelected) "" else tag) }
                     )
                 }
             }
@@ -158,7 +158,7 @@ fun MainCatalogScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator()
+                        ContainedLoadingIndicator()
                     }
                 } else if (uiState.apps.isEmpty() && !uiState.isLoading) {
                     Box(

@@ -36,6 +36,7 @@ import com.whitestore.data.installer.AppInstaller
 import com.whitestore.data.installer.InstallState
 import com.whitestore.data.model.AppUpdateInfo
 import com.whitestore.data.updater.SelfUpdateState
+import com.whitestore.ui.components.ConnectedButtonGroup
 import com.whitestore.ui.theme.AppThemeMode
 import com.whitestore.ui.theme.ThemePreferences
 import com.whitestore.viewmodel.StoreViewModel
@@ -47,7 +48,7 @@ data class InstalledAppInfo(
     val icon: Drawable?
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ProfileScreen(
     viewModel: StoreViewModel,
@@ -68,6 +69,7 @@ fun ProfileScreen(
     val packageTrigger by installer.packageUpdateTrigger.collectAsState()
     val availableUpdates by viewModel.availableUpdates.collectAsState()
     val isCheckingUpdates by viewModel.isCheckingUpdates.collectAsState()
+    val hasCheckedUpdates by viewModel.hasCheckedUpdates.collectAsState()
     val selfUpdateState by viewModel.selfUpdateState.collectAsState()
     var showSelfUpdateDialog by remember { mutableStateOf(false) }
 
@@ -375,10 +377,34 @@ fun ProfileScreen(
                                         .height(38.dp),
                                     enabled = !isCheckingUpdates,
                                     shape = RoundedCornerShape(12.dp),
+                                    colors = if (hasCheckedUpdates) {
+                                        ButtonDefaults.filledTonalButtonColors(
+                                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                                        )
+                                    } else ButtonDefaults.filledTonalButtonColors(),
                                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
                                 ) {
                                     if (isCheckingUpdates) {
-                                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                        LoadingIndicator(
+                                            modifier = Modifier.size(20.dp),
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    } else if (hasCheckedUpdates) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(15.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = "Обновлений нет",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
                                     } else {
                                         Text(
                                             text = "Проверить",
@@ -472,11 +498,12 @@ fun ProfileScreen(
                                 }
                             }
                             is SelfUpdateState.Downloading -> {
-                                CircularProgressIndicator(
-                                    progress = { state.progress },
-                                    modifier = Modifier.size(24.dp),
-                                    strokeWidth = 2.5.dp
-                                )
+                                Box(
+                                    modifier = Modifier.size(38.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    ContainedLoadingIndicator(modifier = Modifier.size(38.dp))
+                                }
                             }
                             is SelfUpdateState.Checking -> {
                                 Box(
@@ -485,9 +512,32 @@ fun ProfileScreen(
                                         .padding(horizontal = 14.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(20.dp),
-                                        strokeWidth = 2.5.dp
+                                    LoadingIndicator(modifier = Modifier.size(24.dp))
+                                }
+                            }
+                            is SelfUpdateState.UpToDate -> {
+                                FilledTonalButton(
+                                    onClick = {
+                                        viewModel.checkSelfUpdate()
+                                    },
+                                    shape = RoundedCornerShape(14.dp),
+                                    colors = ButtonDefaults.filledTonalButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                                    ),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        "Актуально",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.primary
                                     )
                                 }
                             }
@@ -565,7 +615,7 @@ fun ProfileScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun UpdatesScreen(
     viewModel: StoreViewModel,
@@ -696,10 +746,9 @@ fun UpdatesScreen(
                                         shape = RoundedCornerShape(12.dp),
                                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                                     ) {
-                                        CircularProgressIndicator(
-                                            progress = { installState.progress },
-                                            modifier = Modifier.size(16.dp),
-                                            strokeWidth = 2.dp
+                                        LoadingIndicator(
+                                            modifier = Modifier.size(18.dp),
+                                            color = MaterialTheme.colorScheme.primary
                                         )
                                         Spacer(modifier = Modifier.width(6.dp))
                                         val pct = if (installState.progress > 0f) "${(installState.progress * 100).toInt()}%" else "..."
@@ -713,7 +762,10 @@ fun UpdatesScreen(
                                         shape = RoundedCornerShape(12.dp),
                                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                                     ) {
-                                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                        LoadingIndicator(
+                                            modifier = Modifier.size(18.dp),
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
                                     }
                                 }
                                 is InstallState.ReadyToInstall -> {
@@ -795,40 +847,22 @@ fun SettingsScreen(
                     )
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    SingleChoiceSegmentedButtonRow(
+                    ConnectedButtonGroup(
+                        items = listOf(AppThemeMode.SYSTEM, AppThemeMode.LIGHT, AppThemeMode.DARK),
+                        selectedItem = currentMode,
+                        onItemSelected = { mode ->
+                            currentMode = mode
+                            ThemePreferences.setThemeMode(context, mode)
+                        },
+                        labelProvider = { mode ->
+                            when (mode) {
+                                AppThemeMode.SYSTEM -> "Система"
+                                AppThemeMode.LIGHT -> "Светлая"
+                                AppThemeMode.DARK -> "Тёмная"
+                            }
+                        },
                         modifier = Modifier.fillMaxWidth()
-                    ) {
-                        SegmentedButton(
-                            selected = currentMode == AppThemeMode.SYSTEM,
-                            onClick = {
-                                currentMode = AppThemeMode.SYSTEM
-                                ThemePreferences.setThemeMode(context, AppThemeMode.SYSTEM)
-                            },
-                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 3)
-                        ) {
-                            Text("Система", maxLines = 1)
-                        }
-                        SegmentedButton(
-                            selected = currentMode == AppThemeMode.LIGHT,
-                            onClick = {
-                                currentMode = AppThemeMode.LIGHT
-                                ThemePreferences.setThemeMode(context, AppThemeMode.LIGHT)
-                            },
-                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 3)
-                        ) {
-                            Text("Светлая", maxLines = 1)
-                        }
-                        SegmentedButton(
-                            selected = currentMode == AppThemeMode.DARK,
-                            onClick = {
-                                currentMode = AppThemeMode.DARK
-                                ThemePreferences.setThemeMode(context, AppThemeMode.DARK)
-                            },
-                            shape = SegmentedButtonDefaults.itemShape(index = 2, count = 3)
-                        ) {
-                            Text("Тёмная", maxLines = 1)
-                        }
-                    }
+                    )
                 }
             }
 
