@@ -41,9 +41,9 @@ class SelfUpdateManager(
     private val CURRENT_VERSION: String
         get() = try {
             val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-            pInfo.versionName ?: "1.0.1"
+            pInfo.versionName ?: "1.0.2"
         } catch (e: Exception) {
-            "1.0.1"
+            "1.0.2"
         }
 
     private val json = Json {
