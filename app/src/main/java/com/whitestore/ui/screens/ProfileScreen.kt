@@ -60,9 +60,9 @@ fun ProfileScreen(
     val context = LocalContext.current
     val appVersionName = remember {
         try {
-            context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0.2"
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0.3"
         } catch (e: Exception) {
-            "1.0.2"
+            "1.0.3"
         }
     }
     val packageTrigger by installer.packageUpdateTrigger.collectAsState()
@@ -896,7 +896,7 @@ fun SettingsScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "WhiteStore v1.0.2 • Material Expressive",
+                    text = "WhiteStore v1.0.3 • Material Expressive",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.outline
                 )

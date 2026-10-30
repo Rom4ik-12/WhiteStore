@@ -11,15 +11,18 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import com.whitestore.data.model.AppSummaryItem
 
 @Composable
@@ -32,6 +35,7 @@ fun AppCardItem(
     Card(
         modifier = modifier
             .fillMaxWidth()
+            .height(84.dp)
             .clip(RoundedCornerShape(20.dp))
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
@@ -42,13 +46,21 @@ fun AppCardItem(
         Row(
             modifier = Modifier
                 .padding(horizontal = 14.dp, vertical = 12.dp)
-                .fillMaxWidth(),
+                .fillMaxSize(),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            val context = LocalContext.current
+            val imageRequest = remember(item.iconUrl) {
+                ImageRequest.Builder(context)
+                    .data(item.iconUrl)
+                    .size(168, 168) // ~56dp @ 3x density
+                    .build()
+            }
+
             // App Icon with optional installed badge
             Box(contentAlignment = Alignment.BottomEnd) {
                 AsyncImage(
-                    model = item.iconUrl,
+                    model = imageRequest,
                     contentDescription = item.appName,
                     modifier = Modifier
                         .size(56.dp)

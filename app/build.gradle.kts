@@ -13,19 +13,38 @@ android {
         applicationId = "com.whitestore"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.0.2"
+        versionCode = 4
+        versionName = "1.0.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        getByName("debug") {
+            // standard debug keystore
+        }
+        create("release") {
+            // Use debug keystore for easy installation and testing without password prompt
+            val debugSigning = getByName("debug")
+            storeFile = debugSigning.storeFile
+            storePassword = debugSigning.storePassword
+            keyAlias = debugSigning.keyAlias
+            keyPassword = debugSigning.keyPassword
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+        debug {
+            // keep standard debug
         }
     }
 

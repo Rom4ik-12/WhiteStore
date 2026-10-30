@@ -51,7 +51,11 @@ class AppInstaller(
     private val _packageUpdateTrigger = MutableStateFlow<Long>(0)
     val packageUpdateTrigger: StateFlow<Long> = _packageUpdateTrigger.asStateFlow()
 
+    @Volatile
+    private var installedPackagesCache: Set<String> = emptySet()
+
     init {
+        refreshInstalledPackages()
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_PACKAGE_ADDED)
             addAction(Intent.ACTION_PACKAGE_REMOVED)
@@ -60,6 +64,7 @@ class AppInstaller(
         }
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
+                refreshInstalledPackages()
                 _packageUpdateTrigger.value = System.currentTimeMillis()
             }
         }
@@ -70,7 +75,17 @@ class AppInstaller(
         }
     }
 
+    private fun refreshInstalledPackages() {
+        try {
+            val packages = context.packageManager.getInstalledApplications(0)
+            installedPackagesCache = packages.map { it.packageName }.toSet()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error refreshing installed packages cache", e)
+        }
+    }
+
     fun isAppInstalled(packageName: String): Boolean {
+        if (installedPackagesCache.contains(packageName)) return true
         return try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 context.packageManager.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0))

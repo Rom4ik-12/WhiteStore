@@ -4,12 +4,15 @@ import android.app.Application
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
+import coil3.disk.DiskCache
+import coil3.memory.MemoryCache
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import com.whitestore.data.api.RuStoreApiService
 import com.whitestore.data.installer.AppInstaller
 import com.whitestore.data.network.NetworkClientProvider
 import com.whitestore.data.updater.SelfUpdateManager
 import okhttp3.OkHttpClient
+import okio.Path.Companion.toOkioPath
 
 class WhiteStoreApp : Application(), SingletonImageLoader.Factory {
 
@@ -43,6 +46,18 @@ class WhiteStoreApp : Application(), SingletonImageLoader.Factory {
                         callFactory = { okHttpClient }
                     )
                 )
+            }
+            .memoryCache {
+                MemoryCache.Builder()
+                    .maxSizePercent(context, 0.25)
+                    .strongReferencesEnabled(true)
+                    .build()
+            }
+            .diskCache {
+                DiskCache.Builder()
+                    .directory(cacheDir.resolve("image_cache").toOkioPath())
+                    .maxSizePercent(0.05)
+                    .build()
             }
             .build()
     }
