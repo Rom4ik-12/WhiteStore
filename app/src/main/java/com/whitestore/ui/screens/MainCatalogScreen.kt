@@ -94,39 +94,6 @@ fun MainCatalogScreen(
                 )
             )
 
-            // Direct Search Suggestions Dropdown/List directly under the Search Bar
-            if (uiState.suggestions.isNotEmpty() && uiState.isSearching) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 6.dp)
-                    ) {
-                        uiState.suggestions.take(5).forEach { suggest ->
-                            SuggestCardRow(
-                                item = suggest,
-                                onClick = {
-                                    if (!suggest.packageName.isNullOrBlank()) {
-                                        onNavigateToDetail(suggest.packageName)
-                                    } else {
-                                        viewModel.performSearch(suggest.text)
-                                    }
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-
             // Category quick tags with connected morphing style
             LazyRow(
                 modifier = Modifier
@@ -209,51 +176,5 @@ fun MainCatalogScreen(
                 }
             }
         }
-    }
-}
-
-@Composable
-fun SuggestCardRow(
-    item: SuggestItem,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (!item.iconUrl.isNullOrBlank()) {
-            AsyncImage(
-                model = item.iconUrl,
-                contentDescription = item.text,
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(RoundedCornerShape(8.dp))
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-        } else {
-            Icon(
-                imageVector = Icons.Default.Search,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.width(14.dp))
-        }
-
-        Text(
-            text = item.text,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.weight(1f)
-        )
-
-        Icon(
-            imageVector = Icons.Default.NorthWest,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.outline,
-            modifier = Modifier.size(16.dp)
-        )
     }
 }
