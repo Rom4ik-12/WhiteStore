@@ -51,16 +51,8 @@ fun AppDetailScreen(
 
     var selectedImageIndex by remember { mutableStateOf<Int?>(null) }
 
-    if (selectedImageIndex != null && detail != null) {
-        val imageUrls = detail!!.fileUrls.map { it.fileUrl }
-        FullscreenImageViewer(
-            images = imageUrls,
-            initialIndex = selectedImageIndex ?: 0,
-            onDismiss = { selectedImageIndex = null }
-        )
-    }
-
-    Scaffold(
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(detail?.appName ?: "Приложение") },
@@ -271,8 +263,8 @@ fun AppDetailScreen(
                                     val pct = if (installState.progress > 0f) "${(installState.progress * 100).toInt()}%" else "Загрузка..."
                                     val downloadedMb = installState.downloadedBytes / (1024.0 * 1024.0)
                                     val totalMb = installState.totalBytes / (1024.0 * 1024.0)
-                                    val sizeText = if (totalMb > 0) String.format("(%.1f / %.1f МБ)", downloadedMb, totalMb) else ""
-                                    Text("Скачивание $pct $sizeText", style = MaterialTheme.typography.titleMedium)
+                                    val sizeText = if (totalMb > 0) String.format("(%.1f/%.1f)", downloadedMb, totalMb) else ""
+                                    Text("Скачивание $pct $sizeText", style = MaterialTheme.typography.titleMedium, maxLines = 1)
                                 }
 
                                 // Official M3 Expressive Linear Wavy Progress Indicator
@@ -456,6 +448,18 @@ fun AppDetailScreen(
                     color = MaterialTheme.colorScheme.error
                 )
             }
+        }
+    }
+
+        // Fullscreen Screenshot Viewer overlaid inside the same hierarchy for seamless animated transition
+        if (detail != null) {
+            val imageUrls = remember(detail) { detail!!.fileUrls.map { it.fileUrl } }
+            FullscreenImageViewer(
+                images = imageUrls,
+                initialIndex = selectedImageIndex ?: 0,
+                isVisible = selectedImageIndex != null,
+                onDismiss = { selectedImageIndex = null }
+            )
         }
     }
 }

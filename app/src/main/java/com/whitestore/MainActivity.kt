@@ -4,6 +4,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.*
+import com.whitestore.data.prefs.AppPreferences
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -29,6 +31,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ThemePreferences.init(this)
+        AppPreferences.init(this)
         enableEdgeToEdge()
 
         val app = application as WhiteStoreApp
@@ -58,7 +61,11 @@ fun WhiteStoreNavigation(app: WhiteStoreApp) {
 
     Scaffold(
         bottomBar = {
-            if (showBottomBar) {
+            AnimatedVisibility(
+                visible = showBottomBar,
+                enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
+            ) {
                 NavigationBar {
                     NavigationBarItem(
                         icon = { Icon(Icons.Default.Apps, contentDescription = "Каталог") },
@@ -134,6 +141,12 @@ fun WhiteStoreNavigation(app: WhiteStoreApp) {
             }
             composable("settings") {
                 SettingsScreen(
+                    onNavigateToIgnoredApps = { navController.navigate("ignored_apps") },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable("ignored_apps") {
+                IgnoredAppsScreen(
                     onBack = { navController.popBackStack() }
                 )
             }

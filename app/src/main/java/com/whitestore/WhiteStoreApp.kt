@@ -10,6 +10,7 @@ import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import com.whitestore.data.api.RuStoreApiService
 import com.whitestore.data.installer.AppInstaller
 import com.whitestore.data.network.NetworkClientProvider
+import com.whitestore.data.prefs.AppPreferences
 import com.whitestore.data.updater.SelfUpdateManager
 import okhttp3.OkHttpClient
 import okio.Path.Companion.toOkioPath
@@ -31,11 +32,13 @@ class WhiteStoreApp : Application(), SingletonImageLoader.Factory {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        AppPreferences.init(this)
 
         okHttpClient = NetworkClientProvider.createRuStoreClient(this)
+        val standardClient = NetworkClientProvider.createStandardClient()
         apiService = RuStoreApiService(okHttpClient)
         appInstaller = AppInstaller(this, okHttpClient)
-        selfUpdateManager = SelfUpdateManager(this, okHttpClient, appInstaller)
+        selfUpdateManager = SelfUpdateManager(this, standardClient, appInstaller)
     }
 
     override fun newImageLoader(context: PlatformContext): ImageLoader {

@@ -1,8 +1,8 @@
 package com.whitestore.ui.components
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.rememberTransformableState
@@ -24,42 +24,63 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
 
 /**
- * Fullscreen image viewer dialog with pager, pinch-to-zoom, pan, and double-tap zoom.
+ * Official Material 3 Expressive motion for full-screen dialog / container transform:
+ * Fast spatial spring animation with emphasized easing curve.
  */
+private val M3EmphasizedEasing = CubicBezierEasing(0.2f, 0.0f, 0.0f, 1.0f)
+private val M3EmphasizedAccelerate = CubicBezierEasing(0.3f, 0.0f, 0.8f, 0.15f)
+private val M3EmphasizedDecelerate = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1.0f)
+
 @Composable
 fun FullscreenImageViewer(
     images: List<String>,
     initialIndex: Int = 0,
+    isVisible: Boolean,
     onDismiss: () -> Unit
 ) {
     if (images.isEmpty()) return
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            dismissOnBackPress = true,
-            decorFitsSystemWindows = false
+    BackHandler(enabled = isVisible) {
+        onDismiss()
+    }
+
+    val pagerState = rememberPagerState(
+        initialPage = initialIndex.coerceIn(0, images.lastIndex),
+        pageCount = { images.size }
+    )
+
+    // Sync initial index whenever visibility opens
+    LaunchedEffect(isVisible, initialIndex) {
+        if (isVisible) {
+            pagerState.scrollToPage(initialIndex.coerceIn(0, images.lastIndex))
+        }
+    }
+
+    var showControls by remember { mutableStateOf(true) }
+    var isCurrentPageZoomed by remember { mutableStateOf(false) }
+
+    LaunchedEffect(pagerState.currentPage) {
+        isCurrentPageZoomed = false
+    }
+
+    AnimatedVisibility(
+        visible = isVisible,
+        enter = fadeIn(
+            animationSpec = tween(durationMillis = 280, easing = LinearEasing)
+        ) + scaleIn(
+            initialScale = 0.88f,
+            animationSpec = tween(durationMillis = 380, easing = M3EmphasizedDecelerate)
+        ),
+        exit = fadeOut(
+            animationSpec = tween(durationMillis = 200, easing = LinearEasing)
+        ) + scaleOut(
+            targetScale = 0.90f,
+            animationSpec = tween(durationMillis = 250, easing = M3EmphasizedAccelerate)
         )
     ) {
-        val pagerState = rememberPagerState(
-            initialPage = initialIndex.coerceIn(0, images.lastIndex),
-            pageCount = { images.size }
-        )
-
-        var showControls by remember { mutableStateOf(true) }
-        var isCurrentPageZoomed by remember { mutableStateOf(false) }
-
-        // When switching pages, reset zoomed status
-        LaunchedEffect(pagerState.currentPage) {
-            isCurrentPageZoomed = false
-        }
-
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -83,16 +104,10 @@ fun FullscreenImageViewer(
             }
 
             // Top Bar Overlay
-            AnimatedVisibility(
-                visible = showControls,
-                enter = fadeIn(),
-                exit = fadeOut(),
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .fillMaxWidth()
-            ) {
+            if (showControls) {
                 Row(
                     modifier = Modifier
+                        .align(Alignment.TopCenter)
                         .fillMaxWidth()
                         .statusBarsPadding()
                         .padding(horizontal = 16.dp, vertical = 12.dp),
@@ -102,7 +117,7 @@ fun FullscreenImageViewer(
                     IconButton(
                         onClick = onDismiss,
                         modifier = Modifier
-                            .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                            .background(Color.Black.copy(alpha = 0.55f), CircleShape)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
@@ -112,7 +127,7 @@ fun FullscreenImageViewer(
                     }
 
                     Surface(
-                        color = Color.Black.copy(alpha = 0.5f),
+                        color = Color.Black.copy(alpha = 0.55f),
                         shape = RoundedCornerShape(16.dp)
                     ) {
                         Text(
@@ -135,32 +150,50 @@ private fun ZoomableImage(
     onZoomChanged: (Boolean) -> Unit,
     onToggleControls: () -> Unit
 ) {
-    var scale by remember { mutableFloatStateOf(1f) }
-    var offset by remember { mutableStateOf(Offset.Zero) }
+    var rawScale by remember { mutableFloatStateOf(1f) }
+    var rawOffset by remember { mutableStateOf(Offset.Zero) }
 
-    // If navigated away, reset zoom
+    // Material 3 Expressive motion spec for double-tap zoom
+    val animatedScale by animateFloatAsState(
+        targetValue = rawScale,
+        animationSpec = tween(
+            durationMillis = 350,
+            easing = M3EmphasizedEasing
+        ),
+        label = "zoom_scale"
+    )
+
+    val animatedOffset by animateOffsetAsState(
+        targetValue = rawOffset,
+        animationSpec = tween(
+            durationMillis = 350,
+            easing = M3EmphasizedEasing
+        ),
+        label = "pan_offset"
+    )
+
     LaunchedEffect(isCurrentPage) {
         if (!isCurrentPage) {
-            scale = 1f
-            offset = Offset.Zero
+            rawScale = 1f
+            rawOffset = Offset.Zero
             onZoomChanged(false)
         }
     }
 
     val transformState = rememberTransformableState { zoomChange, panChange, _ ->
-        val newScale = (scale * zoomChange).coerceIn(1f, 5f)
-        scale = newScale
+        val newScale = (rawScale * zoomChange).coerceIn(1f, 5f)
+        rawScale = newScale
         onZoomChanged(newScale > 1.05f)
 
         if (newScale > 1f) {
             val maxPanX = (newScale - 1f) * 1000f
             val maxPanY = (newScale - 1f) * 1500f
-            offset = Offset(
-                x = (offset.x + panChange.x * newScale).coerceIn(-maxPanX, maxPanX),
-                y = (offset.y + panChange.y * newScale).coerceIn(-maxPanY, maxPanY)
+            rawOffset = Offset(
+                x = (rawOffset.x + panChange.x * newScale).coerceIn(-maxPanX, maxPanX),
+                y = (rawOffset.y + panChange.y * newScale).coerceIn(-maxPanY, maxPanY)
             )
         } else {
-            offset = Offset.Zero
+            rawOffset = Offset.Zero
         }
     }
 
@@ -171,12 +204,12 @@ private fun ZoomableImage(
                 detectTapGestures(
                     onTap = { onToggleControls() },
                     onDoubleTap = {
-                        if (scale > 1.05f) {
-                            scale = 1f
-                            offset = Offset.Zero
+                        if (rawScale > 1.05f) {
+                            rawScale = 1f
+                            rawOffset = Offset.Zero
                             onZoomChanged(false)
                         } else {
-                            scale = 2.5f
+                            rawScale = 2.5f
                             onZoomChanged(true)
                         }
                     }
@@ -184,7 +217,7 @@ private fun ZoomableImage(
             }
             .transformable(
                 state = transformState,
-                canPan = { scale > 1.05f },
+                canPan = { rawScale > 1.05f },
                 enabled = true
             ),
         contentAlignment = Alignment.Center
@@ -196,10 +229,10 @@ private fun ZoomableImage(
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer(
-                    scaleX = scale,
-                    scaleY = scale,
-                    translationX = offset.x,
-                    translationY = offset.y
+                    scaleX = animatedScale,
+                    scaleY = animatedScale,
+                    translationX = animatedOffset.x,
+                    translationY = animatedOffset.y
                 )
         )
     }

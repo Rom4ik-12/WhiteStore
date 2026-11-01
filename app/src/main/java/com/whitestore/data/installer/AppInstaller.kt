@@ -12,6 +12,7 @@ import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
 import androidx.core.content.FileProvider
+import com.whitestore.data.prefs.AppPreferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -66,6 +67,13 @@ class AppInstaller(
             override fun onReceive(context: Context?, intent: Intent?) {
                 refreshInstalledPackages()
                 _packageUpdateTrigger.value = System.currentTimeMillis()
+
+                val installedPkg = intent?.data?.schemeSpecificPart
+                if (installedPkg != null && intent.action == Intent.ACTION_PACKAGE_ADDED) {
+                    if (AppPreferences.openAfterInstall.value) {
+                        openApp(installedPkg)
+                    }
+                }
             }
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

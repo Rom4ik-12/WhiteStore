@@ -5,6 +5,7 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
+import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.whitestore.data.api.RuStoreApiService
@@ -14,6 +15,7 @@ import com.whitestore.data.model.AppDetail
 import com.whitestore.data.model.AppSummaryItem
 import com.whitestore.data.model.AppUpdateInfo
 import com.whitestore.data.model.SuggestItem
+import com.whitestore.data.prefs.AppPreferences
 import com.whitestore.data.updater.SelfUpdateManager
 import com.whitestore.data.updater.SelfUpdateState
 import kotlinx.coroutines.Dispatchers
@@ -73,6 +75,14 @@ class StoreViewModel(
         loadInitialCatalog()
         checkUpdates()
         checkSelfUpdate()
+
+        // Automatically filter updates when ignored packages change
+        viewModelScope.launch {
+            snapshotFlow { AppPreferences.ignoredPackages.value }
+                .collect { ignored ->
+                    _availableUpdates.value = _availableUpdates.value.filter { !ignored.contains(it.packageName) }
+                }
+        }
     }
 
     fun checkSelfUpdate() {
@@ -232,8 +242,11 @@ class StoreViewModel(
             try {
                 withContext(Dispatchers.IO) {
                     val pm = context.packageManager
+                    val ignored = AppPreferences.ignoredPackages.value
                     val installed = pm.getInstalledApplications(0).filter {
-                        (it.flags and ApplicationInfo.FLAG_SYSTEM) == 0 && it.packageName != context.packageName
+                        (it.flags and ApplicationInfo.FLAG_SYSTEM) == 0 &&
+                                it.packageName != context.packageName &&
+                                !ignored.contains(it.packageName)
                     }
 
                     // Query store in parallel (chunks of 4)
