@@ -49,13 +49,15 @@ fun AppDetailScreen(
     }
     val installState = installStates[packageName] ?: InstallState.Idle
 
+    val summary = remember(packageName) { viewModel.appSummaryCache[packageName] }
+
     var selectedImageIndex by remember { mutableStateOf<Int?>(null) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(detail?.appName ?: "Приложение") },
+                title = { Text(detail?.appName ?: summary?.appName ?: "Приложение") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
@@ -67,7 +69,69 @@ fun AppDetailScreen(
             )
         }
     ) { innerPadding ->
-        if (isDetailLoading && detail == null) {
+        if (detail == null && isDetailLoading && summary != null) {
+            // Instant render with summary and inline loading indicator
+            LazyColumn(
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        AsyncImage(
+                            model = summary.iconUrl,
+                            contentDescription = summary.appName,
+                            modifier = Modifier
+                                .size(84.dp)
+                                .clip(RoundedCornerShape(22.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
+                            contentScale = ContentScale.Crop
+                        )
+
+                        Spacer(modifier = Modifier.width(16.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = summary.appName,
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            if (!summary.companyName.isNullOrBlank()) {
+                                Text(
+                                    text = summary.companyName,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            if (!summary.shortDescription.isNullOrBlank()) {
+                                Text(
+                                    text = summary.shortDescription,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 2
+                                )
+                            }
+                        }
+                    }
+                }
+
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 40.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        ContainedLoadingIndicator()
+                    }
+                }
+            }
+        } else if (isDetailLoading && detail == null) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()

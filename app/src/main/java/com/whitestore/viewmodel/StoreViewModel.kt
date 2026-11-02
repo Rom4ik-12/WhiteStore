@@ -59,6 +59,12 @@ class StoreViewModel(
     private val _isDetailLoading = MutableStateFlow(false)
     val isDetailLoading: StateFlow<Boolean> = _isDetailLoading.asStateFlow()
 
+    // Pre-cache item summaries: packageName -> AppSummaryItem
+    val appSummaryCache = java.util.concurrent.ConcurrentHashMap<String, AppSummaryItem>()
+
+    // In-memory cache for app details: packageName -> AppDetail
+    private val appDetailCache = java.util.concurrent.ConcurrentHashMap<String, AppDetail>()
+
     // Updates state
     private val _availableUpdates = MutableStateFlow<List<AppUpdateInfo>>(emptyList())
     val availableUpdates: StateFlow<List<AppUpdateInfo>> = _availableUpdates.asStateFlow()
@@ -103,6 +109,7 @@ class StoreViewModel(
             try {
                 val result = apiService.searchApps(query = "Банк", pageNumber = 0, pageSize = 25)
                 val apps = result.content
+                apps.forEach { appSummaryCache[it.packageName] = it }
                 _uiState.value = _uiState.value.copy(
                     apps = apps,
                     isLoading = false
@@ -140,6 +147,7 @@ class StoreViewModel(
 
                 val appsBody = apiService.searchApps(newQuery, pageNumber = 0, pageSize = 20)
                 if (appsBody.content.isNotEmpty()) {
+                    appsBody.content.forEach { appSummaryCache[it.packageName] = it }
                     _uiState.value = _uiState.value.copy(apps = appsBody.content)
                 }
             } catch (e: Exception) {
@@ -159,6 +167,7 @@ class StoreViewModel(
             )
             try {
                 val result = apiService.searchApps(query, pageNumber = 0, pageSize = 30)
+                result.content.forEach { appSummaryCache[it.packageName] = it }
                 _uiState.value = _uiState.value.copy(
                     apps = result.content,
                     isLoading = false
@@ -193,13 +202,26 @@ class StoreViewModel(
 
     fun loadAppDetail(packageName: String) {
         viewModelScope.launch {
-            _isDetailLoading.value = true
-            _currentDetail.value = null
+            val cached = appDetailCache[packageName]
+            if (cached != null) {
+                // Show instantly from cache
+                _currentDetail.value = cached
+                _isDetailLoading.value = false
+            } else {
+                _isDetailLoading.value = true
+                _currentDetail.value = null
+            }
+
             try {
                 val detail = apiService.getAppDetail(packageName)
-                _currentDetail.value = detail
+                if (detail != null) {
+                    appDetailCache[packageName] = detail
+                    _currentDetail.value = detail
+                }
             } catch (e: Exception) {
-                _currentDetail.value = null
+                if (_currentDetail.value == null) {
+                    _currentDetail.value = null
+                }
             } finally {
                 _isDetailLoading.value = false
             }

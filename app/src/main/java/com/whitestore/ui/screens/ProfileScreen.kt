@@ -35,6 +35,7 @@ import coil3.compose.AsyncImage
 import com.whitestore.data.installer.AppInstaller
 import com.whitestore.data.installer.InstallState
 import com.whitestore.data.model.AppUpdateInfo
+import com.whitestore.data.prefs.AppPreferences
 import com.whitestore.data.updater.SelfUpdateState
 import com.whitestore.ui.components.ConnectedButtonGroup
 import com.whitestore.ui.theme.AppThemeMode
@@ -569,6 +570,7 @@ fun ProfileScreen(
 fun UpdatesScreen(
     viewModel: StoreViewModel,
     installer: AppInstaller,
+    onNavigateToIgnoredApps: () -> Unit = {},
     onBack: () -> Unit,
     onNavigateToDetail: (String) -> Unit
 ) {
@@ -576,6 +578,7 @@ fun UpdatesScreen(
     val availableUpdates by viewModel.availableUpdates.collectAsState()
     val isCheckingUpdates by viewModel.isCheckingUpdates.collectAsState()
     val installStates by installer.installState.collectAsState()
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -587,6 +590,14 @@ fun UpdatesScreen(
                     }
                 },
                 actions = {
+                    IconButton(
+                        onClick = onNavigateToIgnoredApps
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Block,
+                            contentDescription = "Исключения обновлений"
+                        )
+                    }
                     if (availableUpdates.isNotEmpty()) {
                         TextButton(onClick = { viewModel.updateAll() }) {
                             Text("Обновить всё")
@@ -687,6 +698,21 @@ fun UpdatesScreen(
                                     color = MaterialTheme.colorScheme.outline
                                 )
                             }
+
+                            IconButton(
+                                onClick = {
+                                    AppPreferences.toggleIgnorePackage(context, update.packageName)
+                                },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.VisibilityOff,
+                                    contentDescription = "Скрыть обновление",
+                                    tint = MaterialTheme.colorScheme.outline,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(4.dp))
 
                             when (installState) {
                                 is InstallState.Downloading -> {

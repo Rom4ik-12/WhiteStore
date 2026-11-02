@@ -133,6 +133,7 @@ fun WhiteStoreNavigation(app: WhiteStoreApp) {
                 UpdatesScreen(
                     viewModel = viewModel,
                     installer = app.appInstaller,
+                    onNavigateToIgnoredApps = { navController.navigate("ignored_apps") },
                     onBack = { navController.popBackStack() },
                     onNavigateToDetail = { pkg ->
                         navController.navigate("detail/$pkg")

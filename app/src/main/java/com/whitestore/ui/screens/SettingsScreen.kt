@@ -406,6 +406,13 @@ fun SettingsScreen(
 
             // App Version Info
             item {
+                val versionName = remember {
+                    try {
+                        context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0.6"
+                    } catch (e: Exception) {
+                        "1.0.6"
+                    }
+                }
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -413,7 +420,7 @@ fun SettingsScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "WhiteStore v1.0.5 • Material Expressive",
+                        text = "WhiteStore v$versionName • Material Expressive",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.outline
                     )
@@ -434,7 +441,7 @@ fun IgnoredAppsScreen(
     val context = LocalContext.current
     val ignoredSet by AppPreferences.ignoredPackages
 
-    val appsList = remember {
+    val rawAppsList = remember {
         val pm = context.packageManager
         val packages = pm.getInstalledApplications(0)
         packages.filter { (it.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) == 0 && it.packageName != context.packageName }
@@ -446,7 +453,15 @@ fun IgnoredAppsScreen(
                     versionName = "",
                     icon = pm.getApplicationIcon(appInfo)
                 )
-            }.sortedBy { it.name.lowercase() }
+            }
+    }
+
+    // Sort apps so that already selected/ignored apps appear at the very top
+    val appsList = remember(rawAppsList, ignoredSet) {
+        rawAppsList.sortedWith(
+            compareByDescending<InstalledAppInfo> { ignoredSet.contains(it.packageName) }
+                .thenBy { it.name.lowercase() }
+        )
     }
 
     Scaffold(
