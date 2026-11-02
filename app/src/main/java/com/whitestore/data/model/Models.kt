@@ -69,7 +69,14 @@ data class AppDetail(
     val iconUrl: String? = null,
     val whatsNew: String? = null,
     val fileUrls: List<AppScreenshot> = emptyList(),
-    val ageRestriction: AgeRestriction? = null
+    val ageRestriction: AgeRestriction? = null,
+    val rating: AppRating? = null
+)
+
+@Serializable
+data class AppRating(
+    val average: Double? = null,
+    val votes: Long? = null
 )
 
 @Serializable

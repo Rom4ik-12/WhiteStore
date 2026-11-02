@@ -65,10 +65,63 @@ private val DarkColorScheme = darkColorScheme(
     outline = Color(0xFF8B9198)
 )
 
+private fun buildCustomColorScheme(accent: AccentColor, darkTheme: Boolean) = if (darkTheme) {
+    darkColorScheme(
+        primary = Color(accent.primaryDark),
+        onPrimary = Color(0xFF003450),
+        primaryContainer = Color(accent.primaryDark).copy(alpha = 0.35f),
+        onPrimaryContainer = Color(0xFFFFFFFF),
+        secondary = Color(0xFFB8C8D9),
+        onSecondary = Color(0xFF22323F),
+        secondaryContainer = Color(0xFF394956),
+        onSecondaryContainer = Color(0xFFD3E5F5),
+        tertiary = Color(accent.primaryDark),
+        onTertiary = Color(0xFFFFFFFF),
+        background = Color(0xFF0F1113),
+        onBackground = Color(0xFFE1E2E5),
+        surface = Color(0xFF0F1113),
+        onSurface = Color(0xFFE1E2E5),
+        surfaceVariant = Color(0xFF41474D),
+        onSurfaceVariant = Color(0xFFC1C7CE),
+        surfaceContainerLowest = Color(0xFF0A0C0E),
+        surfaceContainerLow = Color(0xFF181A1D),
+        surfaceContainer = Color(0xFF1D1F23),
+        surfaceContainerHigh = Color(0xFF272A2E),
+        surfaceContainerHighest = Color(0xFF32353A),
+        outline = Color(0xFF8B9198)
+    )
+} else {
+    lightColorScheme(
+        primary = Color(accent.primaryLight),
+        onPrimary = Color(0xFFFFFFFF),
+        primaryContainer = Color(accent.primaryLight).copy(alpha = 0.18f),
+        onPrimaryContainer = Color(accent.primaryLight),
+        secondary = Color(0xFF50606E),
+        onSecondary = Color(0xFFFFFFFF),
+        secondaryContainer = Color(0xFFD3E5F5),
+        onSecondaryContainer = Color(0xFF0C1D29),
+        tertiary = Color(accent.primaryLight),
+        onTertiary = Color(0xFFFFFFFF),
+        background = Color(0xFFFCFCFF),
+        onBackground = Color(0xFF191C1E),
+        surface = Color(0xFFFCFCFF),
+        onSurface = Color(0xFF191C1E),
+        surfaceVariant = Color(0xFFDEE3EA),
+        onSurfaceVariant = Color(0xFF41474D),
+        surfaceContainerLowest = Color(0xFFFFFFFF),
+        surfaceContainerLow = Color(0xFFF7F7FA),
+        surfaceContainer = Color(0xFFF1F2F5),
+        surfaceContainerHigh = Color(0xFFEBECF0),
+        surfaceContainerHighest = Color(0xFFE5E6EA),
+        outline = Color(0xFF72787E)
+    )
+}
+
 @Composable
 fun WhiteStoreTheme(
     themeMode: AppThemeMode = ThemePreferences.currentThemeMode.value,
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = ThemePreferences.dynamicColorEnabled.value,
+    accentColor: AccentColor = ThemePreferences.currentAccentColor.value,
     content: @Composable () -> Unit
 ) {
     val darkTheme = when (themeMode) {
@@ -82,8 +135,7 @@ fun WhiteStoreTheme(
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+        else -> buildCustomColorScheme(accentColor, darkTheme)
     }
 
     MaterialTheme(

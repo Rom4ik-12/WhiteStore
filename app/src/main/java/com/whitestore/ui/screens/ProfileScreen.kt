@@ -25,7 +25,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.core.graphics.drawable.toBitmap
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -40,13 +44,14 @@ import com.whitestore.data.updater.SelfUpdateState
 import com.whitestore.ui.components.ConnectedButtonGroup
 import com.whitestore.ui.theme.AppThemeMode
 import com.whitestore.ui.theme.ThemePreferences
+import com.whitestore.util.AppIcon
+import com.whitestore.util.TimeFormatUtils
 import com.whitestore.viewmodel.StoreViewModel
 
 data class InstalledAppInfo(
     val name: String,
     val packageName: String,
-    val versionName: String,
-    val icon: Drawable?
+    val versionName: String
 )
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -72,6 +77,7 @@ fun ProfileScreen(
     val isCheckingUpdates by viewModel.isCheckingUpdates.collectAsState()
     val hasCheckedUpdates by viewModel.hasCheckedUpdates.collectAsState()
     val selfUpdateState by viewModel.selfUpdateState.collectAsState()
+    val lastCheckTime by AppPreferences.lastUpdateCheckTime
 
     // Count user-installed apps
     val installedAppsCount = remember(packageTrigger) {
@@ -214,7 +220,7 @@ fun ProfileScreen(
                                 ) {
                                     val previewUpdates = availableUpdates.take(3)
                                     Row(
-                                        horizontalArrangement = Arrangement.spacedBy((-6).dp)
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
                                         previewUpdates.forEach { update ->
                                             if (!update.iconUrl.isNullOrBlank()) {
@@ -223,17 +229,17 @@ fun ProfileScreen(
                                                     contentDescription = update.appName,
                                                     modifier = Modifier
                                                         .size(32.dp)
-                                                        .clip(CircleShape)
+                                                        .clip(RoundedCornerShape(8.dp))
                                                         .background(MaterialTheme.colorScheme.surfaceVariant),
                                                     contentScale = ContentScale.Crop
                                                 )
-                                            } else if (update.localIcon != null) {
+                                            } else if (update.localIconBitmap != null) {
                                                 Image(
-                                                    bitmap = update.localIcon.toBitmap().asImageBitmap(),
+                                                    bitmap = update.localIconBitmap,
                                                     contentDescription = update.appName,
                                                     modifier = Modifier
                                                         .size(32.dp)
-                                                        .clip(CircleShape)
+                                                        .clip(RoundedCornerShape(8.dp))
                                                 )
                                             }
                                         }
@@ -244,7 +250,7 @@ fun ProfileScreen(
                                         Box(
                                             modifier = Modifier
                                                 .size(28.dp)
-                                                .clip(CircleShape)
+                                                .clip(RoundedCornerShape(8.dp))
                                                 .background(MaterialTheme.colorScheme.surfaceVariant),
                                             contentAlignment = Alignment.Center
                                         ) {
@@ -274,30 +280,41 @@ fun ProfileScreen(
                             }
 
                             // Title & Count badge (e.g. "Обновления 1")
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "Обновления",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                if (availableUpdates.isNotEmpty()) {
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .size(22.dp)
-                                            .clip(CircleShape)
-                                            .background(Color(0xFFE53935)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = "${availableUpdates.size}",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color.White
-                                        )
+                            Column {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Обновления",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    if (availableUpdates.isNotEmpty()) {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .size(22.dp)
+                                                .clip(CircleShape)
+                                                .background(Color(0xFFE53935)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = "${availableUpdates.size}",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White
+                                            )
+                                        }
                                     }
+                                }
+
+                                if (lastCheckTime > 0L) {
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = TimeFormatUtils.formatRelativeTime(lastCheckTime),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.outline
+                                    )
                                 }
                             }
 
@@ -425,8 +442,9 @@ fun ProfileScreen(
                                     )
                                 }
                                 else -> {
+                                    val lastCheckInfo = if (lastCheckTime > 0L) " • ${TimeFormatUtils.formatRelativeTime(lastCheckTime)}" else ""
                                     Text(
-                                        text = "Версия $appVersionName • Актуальная",
+                                        text = "Версия $appVersionName$lastCheckInfo",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.outline
                                     )
@@ -578,12 +596,28 @@ fun UpdatesScreen(
     val availableUpdates by viewModel.availableUpdates.collectAsState()
     val isCheckingUpdates by viewModel.isCheckingUpdates.collectAsState()
     val installStates by installer.installState.collectAsState()
+    val lastCheckTime by AppPreferences.lastUpdateCheckTime
     val context = LocalContext.current
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Обновления (${availableUpdates.size})") },
+                title = {
+                    Column {
+                        Text(
+                            text = "Обновления (${availableUpdates.size})",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        if (lastCheckTime > 0L) {
+                            Text(
+                                text = "Проверено: ${TimeFormatUtils.formatRelativeTime(lastCheckTime)}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.outline
+                            )
+                        }
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
@@ -673,9 +707,9 @@ fun UpdatesScreen(
                                         .background(MaterialTheme.colorScheme.surfaceVariant),
                                     contentScale = ContentScale.Crop
                                 )
-                            } else if (update.localIcon != null) {
+                            } else if (update.localIconBitmap != null) {
                                 Image(
-                                    bitmap = update.localIcon.toBitmap().asImageBitmap(),
+                                    bitmap = update.localIconBitmap,
                                     contentDescription = update.appName,
                                     modifier = Modifier
                                         .size(48.dp)
@@ -783,25 +817,33 @@ fun MyAppsScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val appsList = remember {
-        val pm = context.packageManager
-        val packages = pm.getInstalledApplications(0)
-        packages.filter { (it.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) == 0 && it.packageName != context.packageName }
-            .map { appInfo ->
-                val label = pm.getApplicationLabel(appInfo).toString()
-                val pInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    pm.getPackageInfo(appInfo.packageName, android.content.pm.PackageManager.PackageInfoFlags.of(0))
-                } else {
-                    @Suppress("DEPRECATION")
-                    pm.getPackageInfo(appInfo.packageName, 0)
-                }
-                InstalledAppInfo(
-                    name = label,
-                    packageName = appInfo.packageName,
-                    versionName = pInfo.versionName ?: "",
-                    icon = pm.getApplicationIcon(appInfo)
-                )
-            }.sortedBy { it.name.lowercase() }
+    var appsList by remember { mutableStateOf<List<InstalledAppInfo>>(emptyList()) }
+
+    LaunchedEffect(Unit) {
+        val result = withContext(Dispatchers.IO) {
+            val pm = context.packageManager
+            val packages = pm.getInstalledApplications(0)
+            packages.filter { (it.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) == 0 && it.packageName != context.packageName }
+                .map { appInfo ->
+                    val label = pm.getApplicationLabel(appInfo).toString()
+                    val pInfo = try {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            pm.getPackageInfo(appInfo.packageName, android.content.pm.PackageManager.PackageInfoFlags.of(0))
+                        } else {
+                            @Suppress("DEPRECATION")
+                            pm.getPackageInfo(appInfo.packageName, 0)
+                        }
+                    } catch (e: Exception) {
+                        null
+                    }
+                    InstalledAppInfo(
+                        name = label,
+                        packageName = appInfo.packageName,
+                        versionName = pInfo?.versionName ?: ""
+                    )
+                }.sortedBy { it.name.lowercase() }
+        }
+        appsList = result
     }
 
     Scaffold(
@@ -826,7 +868,7 @@ fun MyAppsScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            items(appsList) { app ->
+            items(appsList, key = { it.packageName }) { app ->
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -842,22 +884,11 @@ fun MyAppsScreen(
                             .fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (app.icon != null) {
-                            Image(
-                                bitmap = app.icon.toBitmap().asImageBitmap(),
-                                contentDescription = app.name,
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .clip(RoundedCornerShape(14.dp))
-                            )
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                            )
-                        }
+                        AppIcon(
+                            packageName = app.packageName,
+                            size = 48.dp,
+                            shapeRadius = 14.dp
+                        )
 
                         Spacer(modifier = Modifier.width(14.dp))
 

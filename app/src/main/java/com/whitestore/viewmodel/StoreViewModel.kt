@@ -6,6 +6,8 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.whitestore.data.api.RuStoreApiService
@@ -296,6 +298,11 @@ class StoreViewModel(
                                     val remoteCode = storeDetail.versionCode
                                     if (remoteCode > localCode) {
                                         Log.d(TAG, "Update available for $pkgName: local=$localCode, remote=$remoteCode")
+                                        val localBitmap = try {
+                                            pm.getApplicationIcon(appInfo).toBitmap().asImageBitmap()
+                                        } catch (e: Exception) {
+                                            null
+                                        }
                                         AppUpdateInfo(
                                             appId = storeDetail.appId,
                                             packageName = pkgName,
@@ -306,7 +313,7 @@ class StoreViewModel(
                                             targetVersionName = storeDetail.versionName ?: "",
                                             fileSize = storeDetail.fileSize ?: 0L,
                                             iconUrl = storeDetail.iconUrl,
-                                            localIcon = pm.getApplicationIcon(appInfo)
+                                            localIconBitmap = localBitmap
                                         )
                                     } else null
                                 } else null
@@ -329,6 +336,7 @@ class StoreViewModel(
                 _availableUpdates.value = updatesFound
                 _isCheckingUpdates.value = false
                 _hasCheckedUpdates.value = true
+                AppPreferences.setLastUpdateCheckTime(context, System.currentTimeMillis())
             }
         }
     }

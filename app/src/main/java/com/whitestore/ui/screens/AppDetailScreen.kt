@@ -1,5 +1,7 @@
 package com.whitestore.ui.screens
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -19,8 +21,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import java.util.Locale
 import coil3.compose.AsyncImage
 import com.whitestore.data.installer.AppInstaller
 import com.whitestore.data.installer.InstallState
@@ -50,6 +54,7 @@ fun AppDetailScreen(
     val installState = installStates[packageName] ?: InstallState.Idle
 
     val summary = remember(packageName) { viewModel.appSummaryCache[packageName] }
+    val context = LocalContext.current
 
     var selectedImageIndex by remember { mutableStateOf<Int?>(null) }
 
@@ -496,6 +501,145 @@ fun AppDetailScreen(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    }
+                }
+
+                // Reviews & Ratings Section (Отзывы и оценки)
+                item {
+                    val ratingVal = app.rating?.average ?: 0.0
+                    val votesVal = app.rating?.votes ?: 0L
+                    Card(
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainer
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Оценки и отзывы",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "RuStore",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = if (ratingVal > 0.0) String.format(Locale.getDefault(), "%.1f", ratingVal) else "—",
+                                        style = MaterialTheme.typography.displaySmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Row {
+                                        repeat(5) { starIndex ->
+                                            val starFilled = (starIndex + 1) <= ratingVal.toInt()
+                                            Icon(
+                                                imageVector = Icons.Default.Star,
+                                                contentDescription = null,
+                                                tint = if (starFilled) Color(0xFFFFB800) else MaterialTheme.colorScheme.surfaceVariant,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = if (votesVal > 0) "$votesVal оценок" else "Нет оценок",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.outline
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.width(20.dp))
+
+                                // Rating bar breakdowns visual
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    listOf(5, 4, 3, 2, 1).forEach { star ->
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Text(
+                                                text = "$star",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.width(10.dp)
+                                            )
+                                            val barFraction = if (ratingVal > 0.0) {
+                                                when (star) {
+                                                    5 -> 0.70f * (ratingVal / 5f).toFloat()
+                                                    4 -> 0.20f * (ratingVal / 5f).toFloat()
+                                                    3 -> 0.08f
+                                                    2 -> 0.04f
+                                                    else -> 0.05f
+                                                }
+                                            } else 0f
+                                            LinearProgressIndicator(
+                                                progress = { barFraction.coerceIn(0f, 1f) },
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .height(6.dp)
+                                                    .clip(RoundedCornerShape(3.dp)),
+                                                color = Color(0xFFFFB800),
+                                                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(14.dp))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable {
+                                        try {
+                                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.rustore.ru/catalog/app/${app.packageName}"))
+                                            context.startActivity(intent)
+                                        } catch (e: Exception) {
+                                            // Ignore
+                                        }
+                                    }
+                                    .padding(vertical = 6.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Читать все отзывы на RuStore",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }

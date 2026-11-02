@@ -1,6 +1,6 @@
 package com.whitestore.data.model
 
-import android.graphics.drawable.Drawable
+import androidx.compose.ui.graphics.ImageBitmap
 
 data class AppUpdateInfo(
     val appId: Long,
@@ -12,5 +12,5 @@ data class AppUpdateInfo(
     val targetVersionName: String,
     val fileSize: Long,
     val iconUrl: String?,
-    val localIcon: Drawable? = null
+    val localIconBitmap: ImageBitmap? = null
 )

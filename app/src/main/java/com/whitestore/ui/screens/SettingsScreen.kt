@@ -29,11 +29,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import com.whitestore.data.prefs.AppPreferences
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.whitestore.data.prefs.AutoCheckInterval
 import com.whitestore.data.updater.UpdateCheckReceiver
 import com.whitestore.ui.components.ConnectedButtonGroup
+import com.whitestore.ui.theme.AccentColor
 import com.whitestore.ui.theme.AppThemeMode
 import com.whitestore.ui.theme.ThemePreferences
+import com.whitestore.util.AppIcon
+import com.whitestore.util.TimeFormatUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,9 +48,12 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     var currentMode by remember { mutableStateOf(ThemePreferences.currentThemeMode.value) }
+    var dynamicColorEnabled by remember { mutableStateOf(ThemePreferences.dynamicColorEnabled.value) }
+    var currentAccentColor by remember { mutableStateOf(ThemePreferences.currentAccentColor.value) }
     var openAfterInstall by remember { mutableStateOf(AppPreferences.openAfterInstall.value) }
     var currentInterval by remember { mutableStateOf(AppPreferences.autoCheckInterval.value) }
     var autoCheckNotify by remember { mutableStateOf(AppPreferences.autoCheckNotify.value) }
+    val lastCheckTime by AppPreferences.lastUpdateCheckTime
     val ignoredPackages by AppPreferences.ignoredPackages
     val ignoredCount = ignoredPackages.size
 
@@ -104,6 +112,81 @@ fun SettingsScreen(
                             },
                             modifier = Modifier.fillMaxWidth()
                         )
+
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            Spacer(modifier = Modifier.height(14.dp))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        val newVal = !dynamicColorEnabled
+                                        dynamicColorEnabled = newVal
+                                        ThemePreferences.setDynamicColorEnabled(context, newVal)
+                                    },
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Динамические цвета (Monet)",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        text = "Генерация палитры из обоев системы",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(
+                                    checked = dynamicColorEnabled,
+                                    onCheckedChange = {
+                                        dynamicColorEnabled = it
+                                        ThemePreferences.setDynamicColorEnabled(context, it)
+                                    }
+                                )
+                            }
+                        }
+
+                        // Если динамические цвета выключены (или на Android < 12) - показываем выбор акцентного цвета
+                        if (!dynamicColorEnabled || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Акцентный цвет",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                AccentColor.entries.forEach { accent ->
+                                    val isSelected = currentAccentColor == accent
+                                    val color = Color(accent.primaryLight)
+                                    Box(
+                                        modifier = Modifier
+                                            .size(42.dp)
+                                            .clip(androidx.compose.foundation.shape.CircleShape)
+                                            .background(color)
+                                            .clickable {
+                                                currentAccentColor = accent
+                                                ThemePreferences.setAccentColor(context, accent)
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        if (isSelected) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = accent.title,
+                                                tint = Color.White,
+                                                modifier = Modifier.size(22.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -174,6 +257,16 @@ fun SettingsScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        if (lastCheckTime > 0L) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            val relativeTime = TimeFormatUtils.formatRelativeTime(lastCheckTime)
+                            val exactTime = TimeFormatUtils.formatExactDateTime(lastCheckTime)
+                            Text(
+                                text = "Последняя проверка: $relativeTime ($exactTime)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                         Spacer(modifier = Modifier.height(12.dp))
 
                         ConnectedButtonGroup(
@@ -441,19 +534,23 @@ fun IgnoredAppsScreen(
     val context = LocalContext.current
     val ignoredSet by AppPreferences.ignoredPackages
 
-    val rawAppsList = remember {
-        val pm = context.packageManager
-        val packages = pm.getInstalledApplications(0)
-        packages.filter { (it.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) == 0 && it.packageName != context.packageName }
-            .map { appInfo ->
-                val label = pm.getApplicationLabel(appInfo).toString()
-                InstalledAppInfo(
-                    name = label,
-                    packageName = appInfo.packageName,
-                    versionName = "",
-                    icon = pm.getApplicationIcon(appInfo)
-                )
-            }
+    var rawAppsList by remember { mutableStateOf<List<InstalledAppInfo>>(emptyList()) }
+
+    LaunchedEffect(Unit) {
+        val result = withContext(Dispatchers.IO) {
+            val pm = context.packageManager
+            val packages = pm.getInstalledApplications(0)
+            packages.filter { (it.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) == 0 && it.packageName != context.packageName }
+                .map { appInfo ->
+                    val label = pm.getApplicationLabel(appInfo).toString()
+                    InstalledAppInfo(
+                        name = label,
+                        packageName = appInfo.packageName,
+                        versionName = ""
+                    )
+                }
+        }
+        rawAppsList = result
     }
 
     // Sort apps so that already selected/ignored apps appear at the very top
@@ -514,22 +611,11 @@ fun IgnoredAppsScreen(
                             .fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (app.icon != null) {
-                            Image(
-                                bitmap = app.icon.toBitmap().asImageBitmap(),
-                                contentDescription = app.name,
-                                modifier = Modifier
-                                    .size(44.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                            )
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .size(44.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                            )
-                        }
+                        AppIcon(
+                            packageName = app.packageName,
+                            size = 44.dp,
+                            shapeRadius = 12.dp
+                        )
 
                         Spacer(modifier = Modifier.width(14.dp))
 

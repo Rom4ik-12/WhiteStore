@@ -17,11 +17,13 @@ object AppPreferences {
     private const val KEY_IGNORED_PACKAGES = "ignored_packages"
     private const val KEY_AUTO_CHECK_INTERVAL = "auto_check_interval"
     private const val KEY_AUTO_CHECK_NOTIFY = "auto_check_notify"
+    private const val KEY_LAST_UPDATE_CHECK_TIME = "last_update_check_time"
 
     val openAfterInstall = mutableStateOf(false)
     val ignoredPackages = mutableStateOf<Set<String>>(emptySet())
     val autoCheckInterval = mutableStateOf(AutoCheckInterval.OFF)
     val autoCheckNotify = mutableStateOf(true)
+    val lastUpdateCheckTime = mutableStateOf(0L)
 
     fun init(context: Context) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -34,6 +36,7 @@ object AppPreferences {
             AutoCheckInterval.OFF
         }
         autoCheckNotify.value = prefs.getBoolean(KEY_AUTO_CHECK_NOTIFY, true)
+        lastUpdateCheckTime.value = prefs.getLong(KEY_LAST_UPDATE_CHECK_TIME, 0L)
     }
 
     fun setOpenAfterInstall(context: Context, value: Boolean) {
@@ -73,5 +76,11 @@ object AppPreferences {
         autoCheckNotify.value = notify
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit { putBoolean(KEY_AUTO_CHECK_NOTIFY, notify) }
+    }
+
+    fun setLastUpdateCheckTime(context: Context, timeMillis: Long) {
+        lastUpdateCheckTime.value = timeMillis
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit { putLong(KEY_LAST_UPDATE_CHECK_TIME, timeMillis) }
     }
 }

@@ -70,6 +70,8 @@ class UpdateCheckReceiver : BroadcastReceiver() {
                     } catch (_: Exception) {}
                 }
 
+                AppPreferences.setLastUpdateCheckTime(context, System.currentTimeMillis())
+
                 if (updatesCount > 0 && AppPreferences.autoCheckNotify.value) {
                     showUpdateNotification(context, updatesCount)
                 }
