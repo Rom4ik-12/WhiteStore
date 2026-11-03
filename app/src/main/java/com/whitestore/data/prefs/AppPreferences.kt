@@ -13,7 +13,8 @@ enum class AutoCheckInterval(val title: String, val hours: Long) {
 
 enum class UpdateNetworkMode(val title: String) {
     ANY("Любое подключение"),
-    WIFI_ONLY("Только по Wi-Fi")
+    WIFI_ONLY("Только по Wi-Fi"),
+    CELLULAR_ONLY("Только по мобильной сети")
 }
 
 object AppPreferences {
@@ -27,8 +28,12 @@ object AppPreferences {
     private const val KEY_USE_ICON_UPDATE_BUTTON = "use_icon_update_button"
     private const val KEY_SHOW_UPDATE_COUNT_BADGE = "show_update_count_badge"
     private const val KEY_UPDATE_NETWORK_MODE = "update_network_mode"
+    private const val KEY_MAX_CACHE_SIZE_MB = "max_cache_size_mb"
+    private const val KEY_DELETE_APK_AFTER_INSTALL = "delete_apk_after_install"
+    private const val KEY_DOWNLOAD_SPEED_LIMIT_KB = "download_speed_limit_kb"
 
     val openAfterInstall = mutableStateOf(false)
+    val deleteApkAfterInstall = mutableStateOf(false)
     val ignoredPackages = mutableStateOf<Set<String>>(emptySet())
     val autoCheckInterval = mutableStateOf(AutoCheckInterval.OFF)
     val autoCheckNotify = mutableStateOf(true)
@@ -37,10 +42,13 @@ object AppPreferences {
     val useIconUpdateButton = mutableStateOf(true)
     val showUpdateCountBadge = mutableStateOf(true)
     val updateNetworkMode = mutableStateOf(UpdateNetworkMode.ANY)
+    val maxCacheSizeMb = mutableStateOf(1024) // 1024 MB (1 GB) default. 0 = Unlimited.
+    val downloadSpeedLimitKb = mutableStateOf(0) // 0 = No speed limit, otherwise KB/s (e.g. 512, 1024, 2048, 5120)
 
     fun init(context: Context) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         openAfterInstall.value = prefs.getBoolean(KEY_OPEN_AFTER_INSTALL, false)
+        deleteApkAfterInstall.value = prefs.getBoolean(KEY_DELETE_APK_AFTER_INSTALL, false)
         ignoredPackages.value = prefs.getStringSet(KEY_IGNORED_PACKAGES, emptySet())?.toSet() ?: emptySet()
         val savedInterval = prefs.getString(KEY_AUTO_CHECK_INTERVAL, AutoCheckInterval.OFF.name) ?: AutoCheckInterval.OFF.name
         autoCheckInterval.value = try {
@@ -59,12 +67,20 @@ object AppPreferences {
         } catch (e: Exception) {
             UpdateNetworkMode.ANY
         }
+        maxCacheSizeMb.value = prefs.getInt(KEY_MAX_CACHE_SIZE_MB, 1024)
+        downloadSpeedLimitKb.value = prefs.getInt(KEY_DOWNLOAD_SPEED_LIMIT_KB, 0)
     }
 
     fun setOpenAfterInstall(context: Context, value: Boolean) {
         openAfterInstall.value = value
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit { putBoolean(KEY_OPEN_AFTER_INSTALL, value) }
+    }
+
+    fun setDeleteApkAfterInstall(context: Context, value: Boolean) {
+        deleteApkAfterInstall.value = value
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit { putBoolean(KEY_DELETE_APK_AFTER_INSTALL, value) }
     }
 
     fun toggleIgnorePackage(context: Context, packageName: String) {
@@ -128,5 +144,17 @@ object AppPreferences {
         updateNetworkMode.value = mode
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit { putString(KEY_UPDATE_NETWORK_MODE, mode.name) }
+    }
+
+    fun setMaxCacheSizeMb(context: Context, limitMb: Int) {
+        maxCacheSizeMb.value = limitMb
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit { putInt(KEY_MAX_CACHE_SIZE_MB, limitMb) }
+    }
+
+    fun setDownloadSpeedLimitKb(context: Context, speedKb: Int) {
+        downloadSpeedLimitKb.value = speedKb
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit { putInt(KEY_DOWNLOAD_SPEED_LIMIT_KB, speedKb) }
     }
 }

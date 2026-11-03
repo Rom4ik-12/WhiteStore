@@ -160,6 +160,19 @@ class StoreViewModel(
         }
     }
 
+    fun reloadAllData() {
+        appDetailCache.clear()
+        if (_uiState.value.searchQuery.isNotBlank()) {
+            performSearch(_uiState.value.searchQuery)
+        } else if (_uiState.value.selectedCategory.isNotBlank()) {
+            performSearch(_uiState.value.selectedCategory)
+        } else {
+            loadInitialCatalog()
+        }
+        checkUpdates()
+        checkSelfUpdate()
+    }
+
     fun onSearchQueryChanged(newQuery: String) {
         _uiState.value = _uiState.value.copy(searchQuery = newQuery)
         searchJob?.cancel()
@@ -265,13 +278,22 @@ class StoreViewModel(
         }
     }
 
-    fun startDownload(appId: Long, packageName: String, appName: String) {
+    fun startDownload(appId: Long, packageName: String, appName: String, saveOnly: Boolean = false, versionName: String? = null) {
         viewModelScope.launch {
-            if (AppPreferences.updateNetworkMode.value == com.whitestore.data.prefs.UpdateNetworkMode.WIFI_ONLY) {
-                if (!com.whitestore.util.NetworkUtils.isWifiConnected(context)) {
-                    android.widget.Toast.makeText(context, "Загрузка приостановлена: включен режим «Только по Wi-Fi»", android.widget.Toast.LENGTH_LONG).show()
-                    return@launch
+            when (AppPreferences.updateNetworkMode.value) {
+                com.whitestore.data.prefs.UpdateNetworkMode.WIFI_ONLY -> {
+                    if (!com.whitestore.util.NetworkUtils.isWifiConnected(context)) {
+                        android.widget.Toast.makeText(context, "Загрузка приостановлена: включен режим «Только по Wi-Fi»", android.widget.Toast.LENGTH_LONG).show()
+                        return@launch
+                    }
                 }
+                com.whitestore.data.prefs.UpdateNetworkMode.CELLULAR_ONLY -> {
+                    if (!com.whitestore.util.NetworkUtils.isCellularConnected(context)) {
+                        android.widget.Toast.makeText(context, "Загрузка приостановлена: включен режим «Только по мобильной сети»", android.widget.Toast.LENGTH_LONG).show()
+                        return@launch
+                    }
+                }
+                com.whitestore.data.prefs.UpdateNetworkMode.ANY -> {}
             }
 
             installer.setResolving(packageName)
@@ -289,7 +311,7 @@ class StoreViewModel(
 
                 val downloadUrl = apiService.getDownloadLink(targetAppId)
                 if (!downloadUrl.isNullOrBlank()) {
-                    installer.downloadAndInstall(packageName, downloadUrl, appName)
+                    installer.downloadAndInstall(packageName, downloadUrl, appName, saveOnly = saveOnly, versionName = versionName)
                 } else {
                     installer.updateState(packageName, InstallState.Error("Ссылка на скачивание не найдена"))
                 }

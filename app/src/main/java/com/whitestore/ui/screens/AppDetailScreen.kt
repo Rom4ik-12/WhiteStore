@@ -25,6 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import java.util.Locale
+import kotlinx.coroutines.launch
 import coil3.compose.AsyncImage
 import com.whitestore.data.installer.AppInstaller
 import com.whitestore.data.installer.InstallState
@@ -380,14 +381,62 @@ fun AppDetailScreen(
                             }
                         }
                         is InstallState.ReadyToInstall -> {
-                            Button(
-                                onClick = { installer.installDownloadedApk(app.packageName) },
-                                modifier = Modifier.fillMaxWidth().height(54.dp),
-                                shape = RoundedCornerShape(20.dp)
+                            val coroutineScope = rememberCoroutineScope()
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(22.dp))
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Text("Установить сейчас", style = MaterialTheme.typography.titleMedium)
+                                Button(
+                                    onClick = { installer.installDownloadedApk(app.packageName) },
+                                    modifier = Modifier.fillMaxWidth().height(54.dp),
+                                    shape = RoundedCornerShape(20.dp)
+                                ) {
+                                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(22.dp))
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text("Установить сейчас", style = MaterialTheme.typography.titleMedium)
+                                }
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    OutlinedButton(
+                                        onClick = {
+                                            val apkFile = installer.getApkFile(app.packageName)
+                                            if (apkFile != null) {
+                                                coroutineScope.launch {
+                                                    val saved = com.whitestore.util.StorageManager.saveApkToDownloads(context, apkFile, "${app.appName}_${app.versionName}.apk")
+                                                    if (saved != null) {
+                                                        android.widget.Toast.makeText(context, "Сохранено в Загрузки:\n${saved.name}", android.widget.Toast.LENGTH_LONG).show()
+                                                    } else {
+                                                        com.whitestore.util.StorageManager.shareApk(context, apkFile)
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        modifier = Modifier.weight(1f).height(44.dp),
+                                        shape = RoundedCornerShape(14.dp)
+                                    ) {
+                                        Icon(Icons.Default.SaveAlt, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Сохранить APK", style = MaterialTheme.typography.labelMedium)
+                                    }
+
+                                    OutlinedButton(
+                                        onClick = {
+                                            val apkFile = installer.getApkFile(app.packageName)
+                                            if (apkFile != null) {
+                                                com.whitestore.util.StorageManager.shareApk(context, apkFile)
+                                            }
+                                        },
+                                        modifier = Modifier.weight(1f).height(44.dp),
+                                        shape = RoundedCornerShape(14.dp)
+                                    ) {
+                                        Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Поделиться", style = MaterialTheme.typography.labelMedium)
+                                    }
+                                }
                             }
                         }
                         is InstallState.Error -> {
@@ -403,25 +452,52 @@ fun AppDetailScreen(
                             }
                         }
                         is InstallState.Idle -> {
-                            if (isInstalled) {
-                                FilledTonalButton(
-                                    onClick = onAction,
-                                    modifier = Modifier.fillMaxWidth().height(54.dp),
-                                    shape = RoundedCornerShape(20.dp)
-                                ) {
-                                    Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(22.dp))
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Text("Открыть", style = MaterialTheme.typography.titleMedium)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                if (isInstalled) {
+                                    FilledTonalButton(
+                                        onClick = onAction,
+                                        modifier = Modifier.weight(1f).height(54.dp),
+                                        shape = RoundedCornerShape(20.dp)
+                                    ) {
+                                        Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(22.dp))
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Text("Открыть", style = MaterialTheme.typography.titleMedium)
+                                    }
+                                } else {
+                                    Button(
+                                        onClick = onAction,
+                                        modifier = Modifier.weight(1f).height(54.dp),
+                                        shape = RoundedCornerShape(20.dp)
+                                    ) {
+                                        Icon(Icons.Default.ArrowDownward, contentDescription = null, modifier = Modifier.size(22.dp))
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Text("Скачать", style = MaterialTheme.typography.titleMedium)
+                                    }
                                 }
-                            } else {
-                                Button(
-                                    onClick = onAction,
-                                    modifier = Modifier.fillMaxWidth().height(54.dp),
+
+                                // Secondary button to download APK directly as a file to device storage
+                                FilledTonalIconButton(
+                                    onClick = {
+                                        viewModel.startDownload(
+                                            appId = app.appId,
+                                            packageName = app.packageName,
+                                            appName = app.appName,
+                                            saveOnly = true,
+                                            versionName = app.versionName
+                                        )
+                                    },
+                                    modifier = Modifier.size(54.dp),
                                     shape = RoundedCornerShape(20.dp)
                                 ) {
-                                    Icon(Icons.Default.ArrowDownward, contentDescription = null, modifier = Modifier.size(22.dp))
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Text("Скачать", style = MaterialTheme.typography.titleMedium)
+                                    Icon(
+                                        imageVector = Icons.Default.SaveAlt,
+                                        contentDescription = "Скачать .apk файл на устройство",
+                                        tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
                                 }
                             }
                         }

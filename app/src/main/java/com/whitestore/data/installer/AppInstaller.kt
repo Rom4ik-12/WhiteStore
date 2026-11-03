@@ -72,6 +72,14 @@ class AppInstaller(
                 if (installedPkg != null) {
                     // Reset install state back to Idle when app was added or replaced (updated)
                     updateState(installedPkg, InstallState.Idle)
+
+                    // Optional automatic cleanup of the installed APK file
+                    if (AppPreferences.deleteApkAfterInstall.value) {
+                        apkFileMap.remove(installedPkg)?.let { file ->
+                            if (file.exists()) file.delete()
+                        }
+                    }
+
                     if (intent.action == Intent.ACTION_PACKAGE_ADDED && AppPreferences.openAfterInstall.value) {
                         openApp(installedPkg)
                     }
@@ -137,12 +145,14 @@ class AppInstaller(
     suspend fun downloadAndInstall(
         packageName: String,
         downloadUrl: String,
-        appName: String
+        appName: String,
+        saveOnly: Boolean = false,
+        versionName: String? = null
     ) = withContext(Dispatchers.IO) {
         updateState(packageName, InstallState.Downloading(0f, 0, 0))
 
         try {
-            Log.d(TAG, "Starting download for $appName ($packageName): $downloadUrl")
+            Log.d(TAG, "Starting download for $appName ($packageName): $downloadUrl (saveOnly=$saveOnly)")
             val request = Request.Builder().url(downloadUrl).build()
             val response = client.newCall(request).execute()
 
@@ -172,9 +182,38 @@ class AppInstaller(
             var bytesRead: Int
             var lastUpdateMs = 0L
 
+            var speedLimitBytesPerSec = AppPreferences.downloadSpeedLimitKb.value * 1024L
+            var windowStartMs = System.currentTimeMillis()
+            var windowBytesRead = 0L
+
             while (inputStream.read(buffer).also { bytesRead = it } != -1) {
                 outputStream.write(buffer, 0, bytesRead)
                 totalRead += bytesRead
+                windowBytesRead += bytesRead
+
+                // Rate limiting throttler
+                if (speedLimitBytesPerSec > 0) {
+                    val nowMs = System.currentTimeMillis()
+                    val elapsedMs = nowMs - windowStartMs
+                    val expectedMs = (windowBytesRead * 1000L) / speedLimitBytesPerSec
+                    if (expectedMs > elapsedMs) {
+                        val sleepMs = expectedMs - elapsedMs
+                        if (sleepMs > 0) {
+                            try {
+                                Thread.sleep(sleepMs.coerceAtMost(500L))
+                            } catch (e: InterruptedException) {
+                                // proceed
+                            }
+                        }
+                    }
+                    if (elapsedMs >= 1000L) {
+                        windowStartMs = System.currentTimeMillis()
+                        windowBytesRead = 0L
+                        // Dynamic recheck in case preference changed mid-download
+                        speedLimitBytesPerSec = AppPreferences.downloadSpeedLimitKb.value * 1024L
+                    }
+                }
+
                 val now = System.currentTimeMillis()
                 if (now - lastUpdateMs > 100 || totalRead == contentLength) {
                     val progress = if (contentLength > 0) (totalRead.toFloat() / contentLength) else 0f
@@ -195,8 +234,28 @@ class AppInstaller(
             }
 
             apkFileMap[packageName] = targetApkFile
-            updateState(packageName, InstallState.ReadyToInstall)
-            promptInstall(targetApkFile)
+
+            if (saveOnly) {
+                // Save directly to user device's Downloads directory
+                val verSuffix = if (!versionName.isNullOrBlank()) "_$versionName" else ""
+                val savedFile = com.whitestore.util.StorageManager.saveApkToDownloads(
+                    context,
+                    targetApkFile,
+                    "${appName}${verSuffix}.apk"
+                )
+                updateState(packageName, InstallState.Idle)
+                if (savedFile != null) {
+                    showToast("APK сохранён в Загрузки:\n${savedFile.name}")
+                } else {
+                    showToast("APK сохранён в хранилище приложения")
+                }
+            } else {
+                updateState(packageName, InstallState.ReadyToInstall)
+                promptInstall(targetApkFile)
+            }
+
+            // Check if storage cache limit is exceeded and prune oldest if necessary
+            com.whitestore.util.StorageManager.pruneApksIfNeeded(context)
         } catch (e: Exception) {
             Log.e(TAG, "Download error", e)
             val msg = e.localizedMessage ?: "Ошибка скачивания"
@@ -232,6 +291,14 @@ class AppInstaller(
             Log.e(TAG, "Failed to extract APK from zip", e)
         }
         return null
+    }
+
+    fun getApkFile(packageName: String): File? {
+        val file = apkFileMap[packageName]
+        if (file != null && file.exists()) return file
+        val apkDir = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "apks")
+        val fallback = File(apkDir, "$packageName.apk")
+        return if (fallback.exists()) fallback else null
     }
 
     fun installDownloadedApk(packageName: String) {
