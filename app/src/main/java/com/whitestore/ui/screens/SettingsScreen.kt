@@ -921,30 +921,11 @@ fun StorageSettingsScreen(
                     )
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Максимальная скорость",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            val speedLabel = when {
-                                currentSpeedLimitKb <= 0 -> "Без лимита"
-                                currentSpeedLimitKb >= 1024 && currentSpeedLimitKb % 1024 == 0 -> "${currentSpeedLimitKb / 1024} МБ/с"
-                                currentSpeedLimitKb >= 1024 -> String.format(java.util.Locale.getDefault(), "%.1f МБ/с", currentSpeedLimitKb / 1024f)
-                                else -> "$currentSpeedLimitKb КБ/с"
-                            }
-                            Text(
-                                text = speedLabel,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-
+                        Text(
+                            text = "Максимальная скорость",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "Ограничивает скорость скачивания APK файлов, чтобы не перегружать канал связи",
@@ -1016,30 +997,11 @@ fun StorageSettingsScreen(
                     )
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Максимальный объём кеша APK",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            val limitLabel = when {
-                                currentLimitMb <= 0 -> "Без лимита"
-                                currentLimitMb >= 1024 && currentLimitMb % 1024 == 0 -> "${currentLimitMb / 1024} ГБ"
-                                currentLimitMb >= 1024 -> String.format(java.util.Locale.getDefault(), "%.1f ГБ", currentLimitMb / 1024f)
-                                else -> "$currentLimitMb МБ"
-                            }
-                            Text(
-                                text = limitLabel,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-
+                        Text(
+                            text = "Максимальный объём кеша APK",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "При превышении лимита старые загруженные файлы APK будут автоматически удаляться",
@@ -1116,37 +1078,24 @@ fun StorageSettingsScreen(
                     )
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text(
-                                    text = "Всего занято кешем",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                val usageText = if (storageUsage != null) {
-                                    val apks = StorageManager.formatBytes(storageUsage!!.apksSizeBytes)
-                                    val imgs = StorageManager.formatBytes(storageUsage!!.imagesCacheSizeBytes)
-                                    "APK: $apks • Изображения: $imgs"
-                                } else {
-                                    "Подсчёт..."
-                                }
-                                Text(
-                                    text = usageText,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Text(
-                                text = if (storageUsage != null) StorageManager.formatBytes(storageUsage!!.totalSizeBytes) else "...",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
+                        Text(
+                            text = "Всего занято кешем",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        val usageText = if (storageUsage != null) {
+                            val apks = StorageManager.formatBytes(storageUsage!!.apksSizeBytes)
+                            val imgs = StorageManager.formatBytes(storageUsage!!.imagesCacheSizeBytes)
+                            val total = StorageManager.formatBytes(storageUsage!!.totalSizeBytes)
+                            "Всего: $total (APK: $apks • Изображения: $imgs)"
+                        } else {
+                            "Подсчёт..."
                         }
+                        Text(
+                            text = usageText,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
 
                         Spacer(modifier = Modifier.height(14.dp))
 
