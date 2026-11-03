@@ -11,6 +11,11 @@ enum class AutoCheckInterval(val title: String, val hours: Long) {
     HOURS_24("Раз в сутки", 24)
 }
 
+enum class UpdateNetworkMode(val title: String) {
+    ANY("Любое подключение"),
+    WIFI_ONLY("Только по Wi-Fi")
+}
+
 object AppPreferences {
     private const val PREFS_NAME = "whitestore_app_prefs"
     private const val KEY_OPEN_AFTER_INSTALL = "open_after_install"
@@ -21,6 +26,7 @@ object AppPreferences {
     private const val KEY_SHOW_INITIAL_VERSION = "show_initial_version"
     private const val KEY_USE_ICON_UPDATE_BUTTON = "use_icon_update_button"
     private const val KEY_SHOW_UPDATE_COUNT_BADGE = "show_update_count_badge"
+    private const val KEY_UPDATE_NETWORK_MODE = "update_network_mode"
 
     val openAfterInstall = mutableStateOf(false)
     val ignoredPackages = mutableStateOf<Set<String>>(emptySet())
@@ -30,6 +36,7 @@ object AppPreferences {
     val showInitialVersion = mutableStateOf(false)
     val useIconUpdateButton = mutableStateOf(true)
     val showUpdateCountBadge = mutableStateOf(true)
+    val updateNetworkMode = mutableStateOf(UpdateNetworkMode.ANY)
 
     fun init(context: Context) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -46,6 +53,12 @@ object AppPreferences {
         showInitialVersion.value = prefs.getBoolean(KEY_SHOW_INITIAL_VERSION, false)
         useIconUpdateButton.value = prefs.getBoolean(KEY_USE_ICON_UPDATE_BUTTON, true)
         showUpdateCountBadge.value = prefs.getBoolean(KEY_SHOW_UPDATE_COUNT_BADGE, true)
+        val savedNetworkMode = prefs.getString(KEY_UPDATE_NETWORK_MODE, UpdateNetworkMode.ANY.name) ?: UpdateNetworkMode.ANY.name
+        updateNetworkMode.value = try {
+            UpdateNetworkMode.valueOf(savedNetworkMode)
+        } catch (e: Exception) {
+            UpdateNetworkMode.ANY
+        }
     }
 
     fun setOpenAfterInstall(context: Context, value: Boolean) {
@@ -109,5 +122,11 @@ object AppPreferences {
         showUpdateCountBadge.value = value
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit { putBoolean(KEY_SHOW_UPDATE_COUNT_BADGE, value) }
+    }
+
+    fun setUpdateNetworkMode(context: Context, mode: UpdateNetworkMode) {
+        updateNetworkMode.value = mode
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit { putString(KEY_UPDATE_NETWORK_MODE, mode.name) }
     }
 }

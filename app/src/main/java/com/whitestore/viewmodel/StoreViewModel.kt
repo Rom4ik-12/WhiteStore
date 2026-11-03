@@ -91,6 +91,41 @@ class StoreViewModel(
                     _availableUpdates.value = _availableUpdates.value.filter { !ignored.contains(it.packageName) }
                 }
         }
+
+        // Listen for package install/update/remove events to immediately remove updated apps from availableUpdates
+        viewModelScope.launch {
+            installer.packageUpdateTrigger.collect { trigger ->
+                if (trigger > 0) {
+                    filterUpdatedApps()
+                }
+            }
+        }
+    }
+
+    private fun filterUpdatedApps() {
+        val currentUpdates = _availableUpdates.value
+        if (currentUpdates.isEmpty()) return
+        val pm = context.packageManager
+        val remainingUpdates = currentUpdates.filter { update ->
+            try {
+                val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    pm.getPackageInfo(update.packageName, PackageManager.PackageInfoFlags.of(0))
+                } else {
+                    @Suppress("DEPRECATION")
+                    pm.getPackageInfo(update.packageName, 0)
+                }
+                val localCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    packageInfo.longVersionCode
+                } else {
+                    @Suppress("DEPRECATION")
+                    packageInfo.versionCode.toLong()
+                }
+                update.targetVersionCode > localCode
+            } catch (e: Exception) {
+                false
+            }
+        }
+        _availableUpdates.value = remainingUpdates
     }
 
     fun checkSelfUpdate() {
@@ -232,6 +267,13 @@ class StoreViewModel(
 
     fun startDownload(appId: Long, packageName: String, appName: String) {
         viewModelScope.launch {
+            if (AppPreferences.updateNetworkMode.value == com.whitestore.data.prefs.UpdateNetworkMode.WIFI_ONLY) {
+                if (!com.whitestore.util.NetworkUtils.isWifiConnected(context)) {
+                    android.widget.Toast.makeText(context, "Загрузка приостановлена: включен режим «Только по Wi-Fi»", android.widget.Toast.LENGTH_LONG).show()
+                    return@launch
+                }
+            }
+
             installer.setResolving(packageName)
             try {
                 var targetAppId = appId
@@ -343,8 +385,18 @@ class StoreViewModel(
 
     fun updateAll() {
         val list = _availableUpdates.value
+        val installStates = installer.installState.value
         list.forEach { update ->
-            startDownload(update.appId, update.packageName, update.appName)
+            val currentState = installStates[update.packageName]
+            // Skip apps currently downloading or ready to install
+            if (currentState is InstallState.Downloading || currentState is InstallState.Resolving) {
+                return@forEach
+            }
+            if (currentState is InstallState.ReadyToInstall) {
+                installer.installDownloadedApk(update.packageName)
+            } else {
+                startDownload(update.appId, update.packageName, update.appName)
+            }
         }
     }
 }

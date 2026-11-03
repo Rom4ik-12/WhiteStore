@@ -634,6 +634,22 @@ fun UpdatesScreen(
                 },
                 actions = {
                     IconButton(
+                        onClick = { viewModel.checkUpdates() },
+                        enabled = !isCheckingUpdates
+                    ) {
+                        if (isCheckingUpdates) {
+                            LoadingIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Проверить обновления"
+                            )
+                        }
+                    }
+                    IconButton(
                         onClick = onNavigateToIgnoredApps
                     ) {
                         Icon(
@@ -847,7 +863,7 @@ fun UpdatesScreen(
                                     if (useIconUpdateButton) {
                                         FilledIconButton(
                                             onClick = {
-                                                viewModel.startDownload(update.appId, update.packageName, update.appName)
+                                                installer.installDownloadedApk(update.packageName)
                                             },
                                             modifier = Modifier.size(40.dp),
                                             shape = RoundedCornerShape(12.dp),
@@ -865,9 +881,13 @@ fun UpdatesScreen(
                                     } else {
                                         Button(
                                             onClick = {
-                                                viewModel.startDownload(update.appId, update.packageName, update.appName)
+                                                installer.installDownloadedApk(update.packageName)
                                             },
                                             shape = RoundedCornerShape(12.dp),
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                            ),
                                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                                         ) {
                                             Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))

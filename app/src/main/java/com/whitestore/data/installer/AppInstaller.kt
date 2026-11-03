@@ -45,6 +45,8 @@ class AppInstaller(
 ) {
     private val TAG = "AppInstaller"
 
+    private val apkFileMap = java.util.concurrent.ConcurrentHashMap<String, File>()
+
     private val _installState = MutableStateFlow<Map<String, InstallState>>(emptyMap())
     val installState: StateFlow<Map<String, InstallState>> = _installState.asStateFlow()
 
@@ -66,14 +68,15 @@ class AppInstaller(
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 refreshInstalledPackages()
-                _packageUpdateTrigger.value = System.currentTimeMillis()
-
                 val installedPkg = intent?.data?.schemeSpecificPart
-                if (installedPkg != null && intent.action == Intent.ACTION_PACKAGE_ADDED) {
-                    if (AppPreferences.openAfterInstall.value) {
+                if (installedPkg != null) {
+                    // Reset install state back to Idle when app was added or replaced (updated)
+                    updateState(installedPkg, InstallState.Idle)
+                    if (intent.action == Intent.ACTION_PACKAGE_ADDED && AppPreferences.openAfterInstall.value) {
                         openApp(installedPkg)
                     }
                 }
+                _packageUpdateTrigger.value = System.currentTimeMillis()
             }
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -191,6 +194,7 @@ class AppInstaller(
                 downloadedFile
             }
 
+            apkFileMap[packageName] = targetApkFile
             updateState(packageName, InstallState.ReadyToInstall)
             promptInstall(targetApkFile)
         } catch (e: Exception) {
@@ -228,6 +232,13 @@ class AppInstaller(
             Log.e(TAG, "Failed to extract APK from zip", e)
         }
         return null
+    }
+
+    fun installDownloadedApk(packageName: String) {
+        val apkFile = apkFileMap[packageName]
+        if (apkFile != null && apkFile.exists()) {
+            promptInstall(apkFile)
+        }
     }
 
     fun promptInstall(apkFile: File) {

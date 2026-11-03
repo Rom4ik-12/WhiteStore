@@ -381,7 +381,7 @@ fun AppDetailScreen(
                         }
                         is InstallState.ReadyToInstall -> {
                             Button(
-                                onClick = onAction,
+                                onClick = { installer.installDownloadedApk(app.packageName) },
                                 modifier = Modifier.fillMaxWidth().height(54.dp),
                                 shape = RoundedCornerShape(20.dp)
                             ) {

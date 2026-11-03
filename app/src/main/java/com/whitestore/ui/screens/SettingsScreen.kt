@@ -32,6 +32,7 @@ import com.whitestore.data.prefs.AppPreferences
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.whitestore.data.prefs.AutoCheckInterval
+import com.whitestore.data.prefs.UpdateNetworkMode
 import com.whitestore.data.updater.UpdateCheckReceiver
 import com.whitestore.ui.components.ConnectedButtonGroup
 import com.whitestore.ui.theme.AccentColor
@@ -51,6 +52,7 @@ fun SettingsScreen(
     var openAfterInstall by remember { mutableStateOf(AppPreferences.openAfterInstall.value) }
     var currentInterval by remember { mutableStateOf(AppPreferences.autoCheckInterval.value) }
     var autoCheckNotify by remember { mutableStateOf(AppPreferences.autoCheckNotify.value) }
+    var currentNetworkMode by remember { mutableStateOf(AppPreferences.updateNetworkMode.value) }
     val lastCheckTime by AppPreferences.lastUpdateCheckTime
     val ignoredPackages by AppPreferences.ignoredPackages
     val ignoredCount = ignoredPackages.size
@@ -262,6 +264,41 @@ fun SettingsScreen(
                                 )
                             }
                         }
+
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 14.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+
+                        // Сеть для обновлений (Любая сеть / Только по Wi-Fi)
+                        Text(
+                            text = "Сеть для обновлений",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Канал связи для проверки и скачивания обновлений",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        ConnectedButtonGroup(
+                            items = listOf(UpdateNetworkMode.ANY, UpdateNetworkMode.WIFI_ONLY),
+                            selectedItem = currentNetworkMode,
+                            onItemSelected = { mode ->
+                                currentNetworkMode = mode
+                                AppPreferences.setUpdateNetworkMode(context, mode)
+                            },
+                            labelProvider = { mode ->
+                                when (mode) {
+                                    UpdateNetworkMode.ANY -> "Любая сеть"
+                                    UpdateNetworkMode.WIFI_ONLY -> "Только Wi-Fi"
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
                 }
             }

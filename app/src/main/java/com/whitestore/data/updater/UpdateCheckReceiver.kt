@@ -33,6 +33,12 @@ class UpdateCheckReceiver : BroadcastReceiver() {
         // Reschedule alarm for next run
         scheduleNextCheck(context, interval)
 
+        if (AppPreferences.updateNetworkMode.value == com.whitestore.data.prefs.UpdateNetworkMode.WIFI_ONLY) {
+            if (!com.whitestore.util.NetworkUtils.isWifiConnected(context)) {
+                return
+            }
+        }
+
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val pm = context.packageManager
