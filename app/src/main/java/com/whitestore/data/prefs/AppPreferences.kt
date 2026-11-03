@@ -18,12 +18,18 @@ object AppPreferences {
     private const val KEY_AUTO_CHECK_INTERVAL = "auto_check_interval"
     private const val KEY_AUTO_CHECK_NOTIFY = "auto_check_notify"
     private const val KEY_LAST_UPDATE_CHECK_TIME = "last_update_check_time"
+    private const val KEY_SHOW_INITIAL_VERSION = "show_initial_version"
+    private const val KEY_USE_ICON_UPDATE_BUTTON = "use_icon_update_button"
+    private const val KEY_SHOW_UPDATE_COUNT_BADGE = "show_update_count_badge"
 
     val openAfterInstall = mutableStateOf(false)
     val ignoredPackages = mutableStateOf<Set<String>>(emptySet())
     val autoCheckInterval = mutableStateOf(AutoCheckInterval.OFF)
     val autoCheckNotify = mutableStateOf(true)
     val lastUpdateCheckTime = mutableStateOf(0L)
+    val showInitialVersion = mutableStateOf(false)
+    val useIconUpdateButton = mutableStateOf(true)
+    val showUpdateCountBadge = mutableStateOf(true)
 
     fun init(context: Context) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -37,6 +43,9 @@ object AppPreferences {
         }
         autoCheckNotify.value = prefs.getBoolean(KEY_AUTO_CHECK_NOTIFY, true)
         lastUpdateCheckTime.value = prefs.getLong(KEY_LAST_UPDATE_CHECK_TIME, 0L)
+        showInitialVersion.value = prefs.getBoolean(KEY_SHOW_INITIAL_VERSION, false)
+        useIconUpdateButton.value = prefs.getBoolean(KEY_USE_ICON_UPDATE_BUTTON, true)
+        showUpdateCountBadge.value = prefs.getBoolean(KEY_SHOW_UPDATE_COUNT_BADGE, true)
     }
 
     fun setOpenAfterInstall(context: Context, value: Boolean) {
@@ -82,5 +91,23 @@ object AppPreferences {
         lastUpdateCheckTime.value = timeMillis
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit { putLong(KEY_LAST_UPDATE_CHECK_TIME, timeMillis) }
+    }
+
+    fun setShowInitialVersion(context: Context, value: Boolean) {
+        showInitialVersion.value = value
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit { putBoolean(KEY_SHOW_INITIAL_VERSION, value) }
+    }
+
+    fun setUseIconUpdateButton(context: Context, value: Boolean) {
+        useIconUpdateButton.value = value
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit { putBoolean(KEY_USE_ICON_UPDATE_BUTTON, value) }
+    }
+
+    fun setShowUpdateCountBadge(context: Context, value: Boolean) {
+        showUpdateCountBadge.value = value
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit { putBoolean(KEY_SHOW_UPDATE_COUNT_BADGE, value) }
     }
 }

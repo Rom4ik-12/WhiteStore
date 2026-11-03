@@ -43,13 +43,11 @@ import com.whitestore.util.TimeFormatUtils
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
+    onNavigateToDesignSettings: () -> Unit = {},
     onNavigateToIgnoredApps: () -> Unit = {},
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
-    var currentMode by remember { mutableStateOf(ThemePreferences.currentThemeMode.value) }
-    var dynamicColorEnabled by remember { mutableStateOf(ThemePreferences.dynamicColorEnabled.value) }
-    var currentAccentColor by remember { mutableStateOf(ThemePreferences.currentAccentColor.value) }
     var openAfterInstall by remember { mutableStateOf(AppPreferences.openAfterInstall.value) }
     var currentInterval by remember { mutableStateOf(AppPreferences.autoCheckInterval.value) }
     var autoCheckNotify by remember { mutableStateOf(AppPreferences.autoCheckNotify.value) }
@@ -79,114 +77,57 @@ fun SettingsScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // 1. Тема оформления
+            // 1. Дизайн (Переход в отдельное подменю)
             item {
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(22.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(22.dp))
+                        .clickable(onClick = onNavigateToDesignSettings),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainer
                     )
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = "Тема оформления",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        ConnectedButtonGroup(
-                            items = listOf(AppThemeMode.SYSTEM, AppThemeMode.LIGHT, AppThemeMode.DARK),
-                            selectedItem = currentMode,
-                            onItemSelected = { mode ->
-                                currentMode = mode
-                                ThemePreferences.setThemeMode(context, mode)
-                            },
-                            labelProvider = { mode ->
-                                when (mode) {
-                                    AppThemeMode.SYSTEM -> "Система"
-                                    AppThemeMode.LIGHT -> "Светлая"
-                                    AppThemeMode.DARK -> "Тёмная"
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                            Spacer(modifier = Modifier.height(14.dp))
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        val newVal = !dynamicColorEnabled
-                                        dynamicColorEnabled = newVal
-                                        ThemePreferences.setDynamicColorEnabled(context, newVal)
-                                    },
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Динамические цвета (Monet)",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                    Text(
-                                        text = "Генерация палитры из обоев системы",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Switch(
-                                    checked = dynamicColorEnabled,
-                                    onCheckedChange = {
-                                        dynamicColorEnabled = it
-                                        ThemePreferences.setDynamicColorEnabled(context, it)
-                                    }
-                                )
-                            }
+                    Row(
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.primaryContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Palette,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
                         }
 
-                        // Если динамические цвета выключены (или на Android < 12) - показываем выбор акцентного цвета
-                        if (!dynamicColorEnabled || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-                            Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.width(14.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Акцентный цвет",
-                                style = MaterialTheme.typography.bodyMedium,
+                                text = "Дизайн",
+                                style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold
                             )
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                AccentColor.entries.forEach { accent ->
-                                    val isSelected = currentAccentColor == accent
-                                    val color = Color(accent.primaryLight)
-                                    Box(
-                                        modifier = Modifier
-                                            .size(42.dp)
-                                            .clip(androidx.compose.foundation.shape.CircleShape)
-                                            .background(color)
-                                            .clickable {
-                                                currentAccentColor = accent
-                                                ThemePreferences.setAccentColor(context, accent)
-                                            },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        if (isSelected) {
-                                            Icon(
-                                                imageVector = Icons.Default.Check,
-                                                contentDescription = accent.title,
-                                                tint = Color.White,
-                                                modifier = Modifier.size(22.dp)
-                                            )
-                                        }
-                                    }
-                                }
-                            }
+                            Text(
+                                text = "Тема оформления, акцентный цвет, вид обновлений",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
+
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.outline
+                        )
                     }
                 }
             }
@@ -638,6 +579,294 @@ fun IgnoredAppsScreen(
                                 AppPreferences.toggleIgnorePackage(context, app.packageName)
                             }
                         )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Sub-screen: "Дизайн" with sections "Общее" and "Обновления"
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DesignSettingsScreen(
+    onBack: () -> Unit
+) {
+    val context = LocalContext.current
+    var currentMode by remember { mutableStateOf(ThemePreferences.currentThemeMode.value) }
+    var dynamicColorEnabled by remember { mutableStateOf(ThemePreferences.dynamicColorEnabled.value) }
+    var currentAccentColor by remember { mutableStateOf(ThemePreferences.currentAccentColor.value) }
+    var showInitialVersion by remember { mutableStateOf(AppPreferences.showInitialVersion.value) }
+    var useIconUpdateButton by remember { mutableStateOf(AppPreferences.useIconUpdateButton.value) }
+    var showUpdateCountBadge by remember { mutableStateOf(AppPreferences.showUpdateCountBadge.value) }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Дизайн") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            )
+        }
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize(),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Section 1: Общее
+            item {
+                Text(
+                    text = "Общее",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
+                )
+            }
+
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(22.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Тема оформления",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        ConnectedButtonGroup(
+                            items = listOf(AppThemeMode.SYSTEM, AppThemeMode.LIGHT, AppThemeMode.DARK),
+                            selectedItem = currentMode,
+                            onItemSelected = { mode ->
+                                currentMode = mode
+                                ThemePreferences.setThemeMode(context, mode)
+                            },
+                            labelProvider = { mode ->
+                                when (mode) {
+                                    AppThemeMode.SYSTEM -> "Система"
+                                    AppThemeMode.LIGHT -> "Светлая"
+                                    AppThemeMode.DARK -> "Тёмная"
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            Spacer(modifier = Modifier.height(14.dp))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        val newVal = !dynamicColorEnabled
+                                        dynamicColorEnabled = newVal
+                                        ThemePreferences.setDynamicColorEnabled(context, newVal)
+                                    },
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Динамические цвета (Monet)",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        text = "Генерация палитры из обоев системы",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(
+                                    checked = dynamicColorEnabled,
+                                    onCheckedChange = {
+                                        dynamicColorEnabled = it
+                                        ThemePreferences.setDynamicColorEnabled(context, it)
+                                    }
+                                )
+                            }
+                        }
+
+                        if (!dynamicColorEnabled || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Акцентный цвет",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                AccentColor.entries.forEach { accent ->
+                                    val isSelected = currentAccentColor == accent
+                                    val color = Color(accent.primaryLight)
+                                    Box(
+                                        modifier = Modifier
+                                            .size(42.dp)
+                                            .clip(androidx.compose.foundation.shape.CircleShape)
+                                            .background(color)
+                                            .clickable {
+                                                currentAccentColor = accent
+                                                ThemePreferences.setAccentColor(context, accent)
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        if (isSelected) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = accent.title,
+                                                tint = Color.White,
+                                                modifier = Modifier.size(22.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Section 2: Обновления
+            item {
+                Text(
+                    text = "Обновления",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = 4.dp, top = 6.dp, bottom = 2.dp)
+                )
+            }
+
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(22.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val newVal = !useIconUpdateButton
+                                    useIconUpdateButton = newVal
+                                    AppPreferences.setUseIconUpdateButton(context, newVal)
+                                },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Иконка вместо надписи «Обновить»",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = "Компактная кнопка-иконка в карточках обновлений",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = useIconUpdateButton,
+                                onCheckedChange = {
+                                    useIconUpdateButton = it
+                                    AppPreferences.setUseIconUpdateButton(context, it)
+                                }
+                            )
+                        }
+
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 14.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val newVal = !showInitialVersion
+                                    showInitialVersion = newVal
+                                    AppPreferences.setShowInitialVersion(context, newVal)
+                                },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Показывать установленную версию",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = "Отображать переход с текущей на новую версию («1.0 ➔ 2.0»)",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = showInitialVersion,
+                                onCheckedChange = {
+                                    showInitialVersion = it
+                                    AppPreferences.setShowInitialVersion(context, it)
+                                }
+                            )
+                        }
+
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 14.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val newVal = !showUpdateCountBadge
+                                    showUpdateCountBadge = newVal
+                                    AppPreferences.setShowUpdateCountBadge(context, newVal)
+                                },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Количество обновлений в кружочке",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = "Отображать бейдж с числом доступных обновлений на плитке",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = showUpdateCountBadge,
+                                onCheckedChange = {
+                                    showUpdateCountBadge = it
+                                    AppPreferences.setShowUpdateCountBadge(context, it)
+                                }
+                            )
+                        }
                     }
                 }
             }

@@ -33,6 +33,7 @@ import kotlinx.coroutines.withContext
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import coil3.compose.AsyncImage
@@ -78,6 +79,7 @@ fun ProfileScreen(
     val hasCheckedUpdates by viewModel.hasCheckedUpdates.collectAsState()
     val selfUpdateState by viewModel.selfUpdateState.collectAsState()
     val lastCheckTime by AppPreferences.lastUpdateCheckTime
+    val showUpdateCountBadge by AppPreferences.showUpdateCountBadge
 
     // Count user-installed apps
     val installedAppsCount = remember(packageTrigger) {
@@ -289,7 +291,7 @@ fun ProfileScreen(
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.SemiBold
                                     )
-                                    if (availableUpdates.isNotEmpty()) {
+                                    if (showUpdateCountBadge && availableUpdates.isNotEmpty()) {
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Box(
                                             modifier = Modifier
@@ -326,14 +328,16 @@ fun ProfileScreen(
                                         .fillMaxWidth()
                                         .height(38.dp),
                                     shape = RoundedCornerShape(12.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007AFF)),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary,
+                                        contentColor = MaterialTheme.colorScheme.onPrimary
+                                    ),
                                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
                                 ) {
                                     Text(
                                         text = "Обновить всё",
                                         style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White
+                                        fontWeight = FontWeight.Bold
                                     )
                                 }
                             } else {
@@ -454,70 +458,73 @@ fun ProfileScreen(
 
                         when (val state = selfUpdateState) {
                             is SelfUpdateState.UpdateAvailable -> {
-                                Button(
+                                FilledIconButton(
                                     onClick = {
                                         viewModel.downloadSelfUpdate(state.downloadUrl)
                                     },
-                                    shape = RoundedCornerShape(14.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007AFF)),
-                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                                    modifier = Modifier.size(40.dp),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = IconButtonDefaults.filledIconButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary,
+                                        contentColor = MaterialTheme.colorScheme.onPrimary
+                                    )
                                 ) {
-                                    Text("Обновить", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = Color.White)
+                                    Icon(
+                                        imageVector = Icons.Default.Download,
+                                        contentDescription = "Обновить WhiteStore",
+                                        modifier = Modifier.size(20.dp)
+                                    )
                                 }
                             }
                             is SelfUpdateState.Downloading -> {
                                 Box(
-                                    modifier = Modifier.size(38.dp),
+                                    modifier = Modifier.size(40.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    ContainedLoadingIndicator(modifier = Modifier.size(38.dp))
+                                    ContainedLoadingIndicator(modifier = Modifier.size(36.dp))
                                 }
                             }
                             is SelfUpdateState.Checking -> {
                                 Box(
-                                    modifier = Modifier
-                                        .height(34.dp)
-                                        .padding(horizontal = 14.dp),
+                                    modifier = Modifier.size(40.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     LoadingIndicator(modifier = Modifier.size(24.dp))
                                 }
                             }
                             is SelfUpdateState.UpToDate -> {
-                                FilledTonalButton(
+                                FilledTonalIconButton(
                                     onClick = {
                                         viewModel.checkSelfUpdate()
                                     },
-                                    shape = RoundedCornerShape(14.dp),
-                                    colors = ButtonDefaults.filledTonalButtonColors(
-                                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
-                                    ),
-                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                    modifier = Modifier.size(40.dp),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+                                        contentColor = MaterialTheme.colorScheme.primary
+                                    )
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Check,
-                                        contentDescription = null,
+                                        contentDescription = "Версия актуальна",
                                         tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        "Актуально",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.primary
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
                             }
                             else -> {
-                                FilledTonalButton(
+                                FilledTonalIconButton(
                                     onClick = {
                                         viewModel.checkSelfUpdate()
                                     },
-                                    shape = RoundedCornerShape(14.dp),
-                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                                    modifier = Modifier.size(40.dp),
+                                    shape = RoundedCornerShape(12.dp)
                                 ) {
-                                    Text("Проверить", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                                    Icon(
+                                        imageVector = Icons.Default.Refresh,
+                                        contentDescription = "Проверить обновления",
+                                        modifier = Modifier.size(20.dp)
+                                    )
                                 }
                             }
                         }
@@ -597,6 +604,8 @@ fun UpdatesScreen(
     val isCheckingUpdates by viewModel.isCheckingUpdates.collectAsState()
     val installStates by installer.installState.collectAsState()
     val lastCheckTime by AppPreferences.lastUpdateCheckTime
+    val showInitialVersion by AppPreferences.showInitialVersion
+    val useIconUpdateButton by AppPreferences.useIconUpdateButton
     val context = LocalContext.current
 
     Scaffold(
@@ -633,8 +642,14 @@ fun UpdatesScreen(
                         )
                     }
                     if (availableUpdates.isNotEmpty()) {
-                        TextButton(onClick = { viewModel.updateAll() }) {
-                            Text("Обновить всё")
+                        IconButton(
+                            onClick = { viewModel.updateAll() }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Download,
+                                contentDescription = "Обновить всё",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
                         }
                     }
                 },
@@ -723,14 +738,38 @@ fun UpdatesScreen(
                                 Text(
                                     text = update.appName,
                                     style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
-                                val sizeMb = if (update.fileSize > 0) String.format(" • %.1f МБ", update.fileSize / (1024.0 * 1024.0)) else ""
-                                Text(
-                                    text = "${update.currentVersionName} ➔ ${update.targetVersionName}$sizeMb",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.outline
-                                )
+                                val sizeText = if (update.fileSize > 0) String.format("%.1f МБ", update.fileSize / (1024.0 * 1024.0)) else ""
+                                if (showInitialVersion) {
+                                    Text(
+                                        text = "${update.currentVersionName} ➔ ${update.targetVersionName}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.outline,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    if (sizeText.isNotEmpty()) {
+                                        Text(
+                                            text = sizeText,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.outline,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                } else {
+                                    val sizeSuffix = if (sizeText.isNotEmpty()) " • $sizeText" else ""
+                                    Text(
+                                        text = "v${update.targetVersionName}$sizeSuffix",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.outline,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
                             }
 
                             IconButton(
@@ -750,55 +789,122 @@ fun UpdatesScreen(
 
                             when (installState) {
                                 is InstallState.Downloading -> {
-                                    FilledTonalButton(
-                                        onClick = {},
-                                        shape = RoundedCornerShape(12.dp),
-                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                                    ) {
-                                        LoadingIndicator(
-                                            modifier = Modifier.size(18.dp),
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        val pct = if (installState.progress > 0f) "${(installState.progress * 100).toInt()}%" else "..."
-                                        Text(pct, style = MaterialTheme.typography.labelMedium)
+                                    if (useIconUpdateButton) {
+                                        FilledTonalIconButton(
+                                            onClick = {},
+                                            modifier = Modifier.size(40.dp),
+                                            shape = RoundedCornerShape(12.dp)
+                                        ) {
+                                            LoadingIndicator(
+                                                modifier = Modifier.size(20.dp),
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    } else {
+                                        FilledTonalButton(
+                                            onClick = {},
+                                            shape = RoundedCornerShape(12.dp),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                        ) {
+                                            LoadingIndicator(
+                                                modifier = Modifier.size(18.dp),
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            val pct = if (installState.progress > 0f) "${(installState.progress * 100).toInt()}%" else "..."
+                                            Text(pct, style = MaterialTheme.typography.labelMedium)
+                                        }
                                     }
                                 }
                                 is InstallState.Resolving -> {
-                                    FilledTonalButton(
-                                        onClick = {},
-                                        enabled = false,
-                                        shape = RoundedCornerShape(12.dp),
-                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                                    ) {
-                                        LoadingIndicator(
-                                            modifier = Modifier.size(18.dp),
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
+                                    if (useIconUpdateButton) {
+                                        FilledTonalIconButton(
+                                            onClick = {},
+                                            enabled = false,
+                                            modifier = Modifier.size(40.dp),
+                                            shape = RoundedCornerShape(12.dp)
+                                        ) {
+                                            LoadingIndicator(
+                                                modifier = Modifier.size(20.dp),
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    } else {
+                                        FilledTonalButton(
+                                            onClick = {},
+                                            enabled = false,
+                                            shape = RoundedCornerShape(12.dp),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                        ) {
+                                            LoadingIndicator(
+                                                modifier = Modifier.size(18.dp),
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
                                     }
                                 }
                                 is InstallState.ReadyToInstall -> {
-                                    Button(
-                                        onClick = {
-                                            viewModel.startDownload(update.appId, update.packageName, update.appName)
-                                        },
-                                        shape = RoundedCornerShape(12.dp),
-                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                                    ) {
-                                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Установить", style = MaterialTheme.typography.labelMedium)
+                                    if (useIconUpdateButton) {
+                                        FilledIconButton(
+                                            onClick = {
+                                                viewModel.startDownload(update.appId, update.packageName, update.appName)
+                                            },
+                                            modifier = Modifier.size(40.dp),
+                                            shape = RoundedCornerShape(12.dp),
+                                            colors = IconButtonDefaults.filledIconButtonColors(
+                                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                            )
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = "Установить",
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                    } else {
+                                        Button(
+                                            onClick = {
+                                                viewModel.startDownload(update.appId, update.packageName, update.appName)
+                                            },
+                                            shape = RoundedCornerShape(12.dp),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                        ) {
+                                            Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("Установить", style = MaterialTheme.typography.labelMedium)
+                                        }
                                     }
                                 }
                                 else -> {
-                                    Button(
-                                        onClick = {
-                                            viewModel.startDownload(update.appId, update.packageName, update.appName)
-                                        },
-                                        shape = RoundedCornerShape(12.dp),
-                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                                    ) {
-                                        Text("Обновить", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                                    if (useIconUpdateButton) {
+                                        FilledIconButton(
+                                            onClick = {
+                                                viewModel.startDownload(update.appId, update.packageName, update.appName)
+                                            },
+                                            modifier = Modifier.size(40.dp),
+                                            shape = RoundedCornerShape(12.dp),
+                                            colors = IconButtonDefaults.filledIconButtonColors(
+                                                containerColor = MaterialTheme.colorScheme.primary,
+                                                contentColor = MaterialTheme.colorScheme.onPrimary
+                                            )
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Download,
+                                                contentDescription = "Обновить",
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                    } else {
+                                        Button(
+                                            onClick = {
+                                                viewModel.startDownload(update.appId, update.packageName, update.appName)
+                                            },
+                                            shape = RoundedCornerShape(12.dp),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                        ) {
+                                            Text("Обновить", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                                        }
                                     }
                                 }
                             }
@@ -907,12 +1013,16 @@ fun MyAppsScreen(
                             }
                         }
 
-                        FilledTonalButton(
+                        FilledTonalIconButton(
                             onClick = { installer.openApp(app.packageName) },
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                            modifier = Modifier.size(40.dp),
+                            shape = RoundedCornerShape(12.dp)
                         ) {
-                            Text("Открыть", style = MaterialTheme.typography.labelMedium)
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                contentDescription = "Открыть",
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
                     }
                 }
