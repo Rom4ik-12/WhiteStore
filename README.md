@@ -2,12 +2,16 @@
 
 [![GitHub Release](https://img.shields.io/github/v/release/Rom4ik-12/WhiteStore?style=flat-square&color=007AFF)](https://github.com/Rom4ik-12/WhiteStore/releases/latest)
 [![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/Rom4ik-12/WhiteStore/total?style=flat-square&color=34C759)](https://github.com/Rom4ik-12/WhiteStore/releases)
+[![Telegram Channel](https://img.shields.io/badge/Telegram-Канал%20проекта-24A1DE?style=flat-square&logo=telegram&logoColor=white)](https://t.me/whitestorefoss)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 [![Language](https://img.shields.io/badge/Language-Kotlin%202.0-7F52FF?style=flat-square)](https://kotlinlang.org/)
 [![UI Framework](https://img.shields.io/badge/UI-Jetpack%20Compose%20(M3%20Expressive)-4285F4?style=flat-square)](https://developer.android.com/jetpack/compose)
 [![Min SDK](https://img.shields.io/badge/Min%20SDK-26%20(Android%208.0)-grey?style=flat-square)](https://developer.android.com)
 [![Target SDK](https://img.shields.io/badge/Target%20SDK-35%20(Android%2015)-grey?style=flat-square)](https://developer.android.com)
 
 Автономный, легковесный и открытый клиент каталога приложений RuStore для Android. Построен на современных технологиях Jetpack Compose и Material 3 Expressive без навязчивых сервисов, рекламы, трекеров и обязательной авторизации.
+
+**Официальный Telegram-канал проекта**: [t.me/whitestorefoss](https://t.me/whitestorefoss) — новости, анонсы релизов и обсуждение.
 
 ---
 
@@ -107,4 +111,13 @@ cd WhiteStore
 
 ## Лицензия и отказ от ответственности
 
+Проект распространяется под открытой лицензией [MIT](LICENSE).
+
 Проект разработан исключительно в образовательных и ознакомительных целях как альтернативный интерфейс взаимодействия с открытым каталогом. WhiteStore не является официальным продуктом VK или RuStore и не использует товарные знаки третьих лиц в коммерческих целях.
+
+---
+
+## Сообщество
+
+- **Telegram-канал**: [https://t.me/whitestorefoss](https://t.me/whitestorefoss)
+- **Баг-трекер и предложения**: [GitHub Issues](https://github.com/Rom4ik-12/WhiteStore/issues)
