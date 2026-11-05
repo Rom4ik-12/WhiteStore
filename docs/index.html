@@ -4,15 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WhiteStore — Легковесный клиент RuStore</title>
-    <meta name="description" content="Минималистичный, открытый и быстрый клиент каталога RuStore для Android. Без трекеров, без рекламы, Material Design 3 Expressive.">
-    
-    <!-- Open Graph -->
-    <meta property="og:title" content="WhiteStore — Легковесный клиент RuStore">
-    <meta property="og:description" content="Минималистичный, открытый и быстрый клиент каталога RuStore. Чистый интерфейс, zero-bloat, Material Design 3.">
-    <meta property="og:type" content="website">
-    <meta property="og:image" content="./assets/banner_triple_showcase.png">
+    <meta name="description" content="Минималистичный клиент каталога RuStore в строгом стиле Material 3. Без рекламы, без трекеров, открытый исходный код.">
 
-    <!-- Fonts: Cal Sans & Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -22,52 +15,67 @@
 
     <style>
         :root {
-            /* Brand Color: RuStore Official Blue */
-            --brand: #0077FF;
-            --brand-hover: #0066E0;
-            --brand-alpha: rgba(0, 119, 255, 0.12);
-            --brand-border: rgba(0, 119, 255, 0.3);
+            /* RuStore Blue */
+            --md-sys-color-primary: #0077FF;
+            --md-sys-color-on-primary: #FFFFFF;
+            --md-sys-color-primary-container: rgba(0, 119, 255, 0.14);
+            --md-sys-color-on-primary-container: #0077FF;
 
-            --radius-sm: 8px;
-            --radius-md: 14px;
-            --radius-lg: 20px;
-            --radius-full: 9999px;
+            /* M3 Shapes */
+            --shape-none: 0px;
+            --shape-xs: 4px;
+            --shape-sm: 8px;
+            --shape-md: 12px;
+            --shape-lg: 16px;
+            --shape-xl: 28px;
+            --shape-full: 9999px;
 
-            --transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+            /* M3 Expressive Asymmetrical Pill Shapes */
+            --shape-pill-cut: 28px 8px 28px 8px;
+            --shape-pill-cut-alt: 8px 28px 8px 28px;
+            --shape-card-accent: 32px 12px 32px 12px;
+
             --font-display: 'Cal Sans', -apple-system, BlinkMacSystemFont, sans-serif;
             --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --transition: all 0.18s cubic-bezier(0.2, 0, 0, 1);
         }
 
-        /* Dark Theme: Pure minimal black + RuStore Blue */
+        /* Pure Flat Minimal Dark */
         html[data-theme="dark"] {
-            --bg-page: #000000;
-            --bg-surface: #0E0E10;
-            --bg-surface-elevated: #16161A;
-            --bg-surface-hover: #1E1E24;
-            --border: #232328;
-            --border-subtle: #1C1C20;
-            --text-primary: #FFFFFF;
-            --text-secondary: #9E9EA8;
-            --text-tertiary: #62626C;
-            --card-shadow: 0 0 0 1px #232328;
-            --tag-bg: #141418;
-            --tag-text: #D0D0DA;
+            --md-sys-color-background: #000000;
+            --md-sys-color-on-background: #FFFFFF;
+            
+            --md-sys-color-surface: #0A0A0C;
+            --md-sys-color-surface-dim: #050507;
+            --md-sys-color-surface-container: #121215;
+            --md-sys-color-surface-container-high: #1A1A1F;
+            --md-sys-color-surface-container-highest: #23232A;
+
+            --md-sys-color-outline: #2E2E36;
+            --md-sys-color-outline-variant: #1E1E24;
+
+            --md-sys-color-on-surface: #FFFFFF;
+            --md-sys-color-on-surface-variant: #9E9EA8;
+            --md-sys-color-tertiary-text: #666672;
         }
 
-        /* Light Theme: Pure minimal white + RuStore Blue */
+        /* Pure Flat Minimal Light */
         html[data-theme="light"] {
-            --bg-page: #FFFFFF;
-            --bg-surface: #F8F9FA;
-            --bg-surface-elevated: #FFFFFF;
-            --bg-surface-hover: #F0F2F5;
-            --border: #E5E7EB;
-            --border-subtle: #EEEEF2;
-            --text-primary: #0A0A0B;
-            --text-secondary: #5E636E;
-            --text-tertiary: #8E95A3;
-            --card-shadow: 0 0 0 1px #E5E7EB, 0 2px 4px rgba(0,0,0,0.03);
-            --tag-bg: #F0F2F5;
-            --tag-text: #374151;
+            --md-sys-color-background: #FFFFFF;
+            --md-sys-color-on-background: #0A0A0C;
+            
+            --md-sys-color-surface: #F9FAFB;
+            --md-sys-color-surface-dim: #F3F4F6;
+            --md-sys-color-surface-container: #F0F2F5;
+            --md-sys-color-surface-container-high: #E5E7EB;
+            --md-sys-color-surface-container-highest: #D1D5DB;
+
+            --md-sys-color-outline: #E5E7EB;
+            --md-sys-color-outline-variant: #EEEEF2;
+
+            --md-sys-color-on-surface: #0A0A0C;
+            --md-sys-color-on-surface-variant: #4B5563;
+            --md-sys-color-tertiary-text: #8E95A3;
         }
 
         * {
@@ -77,21 +85,19 @@
         }
 
         body {
-            background-color: var(--bg-page);
-            color: var(--text-primary);
+            background-color: var(--md-sys-color-background);
+            color: var(--md-sys-color-on-background);
             font-family: var(--font-body);
-            line-height: 1.55;
+            line-height: 1.5;
             -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-            transition: background-color 0.25s ease, color 0.25s ease;
             overflow-x: hidden;
+            transition: background-color 0.2s ease, color 0.2s ease;
         }
 
         h1, h2, h3, h4, .font-display {
             font-family: var(--font-display);
             letter-spacing: -0.02em;
             font-weight: 700;
-            line-height: 1.15;
         }
 
         a {
@@ -101,7 +107,7 @@
 
         .container {
             width: 100%;
-            max-width: 1120px;
+            max-width: 1080px;
             margin: 0 auto;
             padding: 0 24px;
         }
@@ -111,39 +117,39 @@
             position: sticky;
             top: 0;
             z-index: 100;
-            background: var(--bg-page);
-            border-bottom: 1px solid var(--border);
-            transition: background-color 0.25s ease, border-color 0.25s ease;
+            background: var(--md-sys-color-background);
+            border-bottom: 1px solid var(--md-sys-color-outline-variant);
         }
 
         .nav-wrap {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            height: 72px;
+            height: 70px;
         }
 
-        .brand {
+        .brand-link {
             display: flex;
             align-items: center;
             gap: 12px;
             font-family: var(--font-display);
-            font-size: 22px;
+            font-size: 21px;
             font-weight: 700;
         }
 
-        .brand-icon {
+        /* M3 squircle icon */
+        .m3-logo-badge {
             width: 38px;
             height: 38px;
-            background: var(--brand);
-            border-radius: var(--radius-sm);
+            background: var(--md-sys-color-primary);
+            color: #FFFFFF;
+            border-radius: var(--shape-md);
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #FFFFFF;
         }
 
-        .brand-icon svg {
+        .m3-logo-badge svg {
             width: 22px;
             height: 22px;
             fill: none;
@@ -153,374 +159,473 @@
             stroke-linejoin: round;
         }
 
-        .nav-links {
+        .nav-items {
             display: flex;
             align-items: center;
-            gap: 28px;
+            gap: 8px;
         }
 
-        .nav-link {
+        /* M3 Navigation Pill */
+        .nav-pill {
+            padding: 8px 18px;
+            border-radius: var(--shape-full);
             font-size: 14px;
             font-weight: 500;
-            color: var(--text-secondary);
+            color: var(--md-sys-color-on-surface-variant);
             transition: var(--transition);
         }
 
-        .nav-link:hover {
-            color: var(--text-primary);
+        .nav-pill:hover {
+            color: var(--md-sys-color-on-surface);
+            background: var(--md-sys-color-surface-container);
         }
 
-        .nav-actions {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .theme-btn {
-            background: var(--bg-surface);
-            border: 1px solid var(--border);
-            color: var(--text-primary);
-            padding: 9px 12px;
-            border-radius: var(--radius-sm);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            transition: var(--transition);
-        }
-
-        .theme-btn:hover {
-            background: var(--bg-surface-hover);
-            border-color: var(--brand);
-        }
-
-        /* Buttons (Strict flat minimal, no gradients) */
-        .btn {
+        /* M3 Button Styles (Flat, no gradients) */
+        .m3-btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 10px;
             font-family: var(--font-body);
-            font-size: 15px;
+            font-size: 14.5px;
             font-weight: 600;
-            padding: 13px 24px;
-            border-radius: var(--radius-sm);
+            padding: 12px 24px;
+            border-radius: var(--shape-xl);
+            border: 1px solid transparent;
             cursor: pointer;
             transition: var(--transition);
-            border: 1px solid transparent;
-            text-align: center;
             white-space: nowrap;
         }
 
-        .btn svg {
-            width: 19px;
-            height: 19px;
-            flex-shrink: 0;
+        .m3-btn svg {
+            width: 18px;
+            height: 18px;
         }
 
-        .btn-brand {
-            background: var(--brand);
-            color: #FFFFFF;
-            border-color: var(--brand);
+        .m3-btn-filled {
+            background: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+            border-color: var(--md-sys-color-primary);
         }
 
-        .btn-brand:hover {
-            background: var(--brand-hover);
-            border-color: var(--brand-hover);
+        .m3-btn-filled:hover {
+            opacity: 0.92;
             transform: translateY(-1px);
         }
 
-        .btn-secondary {
-            background: var(--bg-surface);
-            color: var(--text-primary);
-            border-color: var(--border);
+        .m3-btn-tonal {
+            background: var(--md-sys-color-surface-container-high);
+            color: var(--md-sys-color-on-surface);
+            border-color: var(--md-sys-color-outline);
         }
 
-        .btn-secondary:hover {
-            background: var(--bg-surface-hover);
-            border-color: var(--text-secondary);
+        .m3-btn-tonal:hover {
+            background: var(--md-sys-color-surface-container-highest);
+            border-color: var(--md-sys-color-primary);
             transform: translateY(-1px);
         }
 
-        .btn-outline {
+        .m3-btn-outlined {
             background: transparent;
-            color: var(--text-primary);
-            border-color: var(--border);
+            color: var(--md-sys-color-on-surface);
+            border-color: var(--md-sys-color-outline);
         }
 
-        .btn-outline:hover {
-            border-color: var(--brand);
-            color: var(--brand);
+        .m3-btn-outlined:hover {
+            border-color: var(--md-sys-color-primary);
+            color: var(--md-sys-color-primary);
+        }
+
+        /* M3 Theme toggle pill */
+        .m3-icon-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--shape-full);
+            background: var(--md-sys-color-surface-container);
+            border: 1px solid var(--md-sys-color-outline);
+            color: var(--md-sys-color-on-surface);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .m3-icon-btn:hover {
+            border-color: var(--md-sys-color-primary);
+            color: var(--md-sys-color-primary);
+        }
+
+        .m3-icon-btn svg {
+            width: 18px;
+            height: 18px;
         }
 
         /* Hero Section */
         .hero {
             padding: 80px 0 60px;
-            text-align: center;
         }
 
-        .hero-badge {
+        .hero-grid {
+            display: grid;
+            grid-template-columns: 1.15fr 0.85fr;
+            gap: 40px;
+            align-items: center;
+        }
+
+        /* M3 Assist Pill Chip */
+        .m3-chip {
             display: inline-flex;
             align-items: center;
             gap: 8px;
             padding: 6px 14px;
-            background: var(--brand-alpha);
-            border: 1px solid var(--brand-border);
-            border-radius: var(--radius-full);
-            color: var(--brand);
+            border-radius: var(--shape-full);
+            background: var(--md-sys-color-primary-container);
+            color: var(--md-sys-color-primary);
+            border: 1px solid rgba(0, 119, 255, 0.25);
             font-size: 13px;
             font-weight: 600;
             margin-bottom: 24px;
-            font-family: var(--font-body);
         }
 
-        .hero-badge .dot {
+        .m3-chip-dot {
             width: 7px;
             height: 7px;
-            border-radius: 50%;
-            background: var(--brand);
+            border-radius: var(--shape-full);
+            background: var(--md-sys-color-primary);
         }
 
         .hero-title {
-            font-size: clamp(38px, 6.5vw, 68px);
+            font-size: clamp(38px, 5.2vw, 58px);
             line-height: 1.08;
-            margin-bottom: 22px;
-            letter-spacing: -0.03em;
+            margin-bottom: 20px;
         }
 
-        .hero-title span {
-            color: var(--brand);
+        .hero-title .accent {
+            color: var(--md-sys-color-primary);
         }
 
         .hero-desc {
-            font-size: clamp(16px, 2.2vw, 20px);
-            color: var(--text-secondary);
-            max-width: 680px;
-            margin: 0 auto 36px;
-            font-weight: 400;
-            line-height: 1.5;
+            font-size: 17px;
+            color: var(--md-sys-color-on-surface-variant);
+            max-width: 520px;
+            margin-bottom: 34px;
+            line-height: 1.6;
         }
 
         .hero-actions {
             display: flex;
             align-items: center;
-            justify-content: center;
-            gap: 14px;
+            gap: 12px;
             flex-wrap: wrap;
-            margin-bottom: 48px;
+            margin-bottom: 36px;
         }
 
-        .hero-meta {
+        /* M3 Pill Badges Row */
+        .m3-badges-row {
             display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 24px;
-            font-size: 13px;
-            color: var(--text-tertiary);
             flex-wrap: wrap;
+            gap: 8px;
         }
 
-        .hero-meta-item {
-            display: flex;
+        .m3-badge {
+            display: inline-flex;
             align-items: center;
             gap: 6px;
+            padding: 5px 12px;
+            border-radius: var(--shape-md);
+            background: var(--md-sys-color-surface-container);
+            border: 1px solid var(--md-sys-color-outline-variant);
+            font-size: 12.5px;
+            color: var(--md-sys-color-on-surface-variant);
+            font-weight: 500;
         }
 
-        .hero-meta-item svg {
-            width: 15px;
-            height: 15px;
-            stroke: var(--brand);
+        .m3-badge svg {
+            width: 14px;
+            height: 14px;
+            stroke: var(--md-sys-color-primary);
         }
 
-        /* Preview / Showcase Banner */
-        .showcase {
-            margin: 20px 0 90px;
-        }
-
-        .showcase-frame {
-            background: var(--bg-surface);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
+        /* Interactive M3 App Card Widget in Hero */
+        .m3-app-widget {
+            background: var(--md-sys-color-surface-container);
+            border: 1px solid var(--md-sys-color-outline);
+            border-radius: var(--shape-xl);
             padding: 24px;
-            overflow: hidden;
-            text-align: center;
-        }
-
-        .showcase-frame img {
-            width: 100%;
-            height: auto;
-            border-radius: var(--radius-md);
-            display: block;
-        }
-
-        /* Grid section */
-        .section {
-            padding: 70px 0;
-            border-top: 1px solid var(--border);
-        }
-
-        .section-header {
-            margin-bottom: 48px;
-            text-align: left;
-        }
-
-        .section-label {
-            font-size: 13px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: var(--brand);
-            margin-bottom: 10px;
-            font-family: var(--font-body);
-        }
-
-        .section-title {
-            font-size: clamp(28px, 4vw, 42px);
-            margin-bottom: 12px;
-        }
-
-        .section-subtitle {
-            font-size: 17px;
-            color: var(--text-secondary);
-            max-width: 600px;
-        }
-
-        /* Cards Grid */
-        .grid-3 {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 20px;
-        }
-
-        .grid-2 {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
-        }
-
-        .card {
-            background: var(--bg-surface);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-md);
-            padding: 28px;
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 20px;
+        }
+
+        .widget-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .widget-store-pill {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 4px 10px;
+            border-radius: var(--shape-full);
+            background: var(--md-sys-color-primary-container);
+            color: var(--md-sys-color-primary);
+        }
+
+        .widget-item {
+            background: var(--md-sys-color-surface);
+            border: 1px solid var(--md-sys-color-outline-variant);
+            border-radius: var(--shape-lg);
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+        }
+
+        .widget-item-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .widget-item-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: var(--shape-md);
+            background: var(--md-sys-color-surface-container-highest);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-display);
+            font-weight: 700;
+            color: var(--md-sys-color-primary);
+            font-size: 17px;
+        }
+
+        .widget-item-title {
+            font-size: 14.5px;
+            font-weight: 600;
+            color: var(--md-sys-color-on-surface);
+        }
+
+        .widget-item-sub {
+            font-size: 12px;
+            color: var(--md-sys-color-on-surface-variant);
+        }
+
+        .widget-action-pill {
+            padding: 6px 14px;
+            border-radius: var(--shape-full);
+            font-size: 12.5px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
             transition: var(--transition);
         }
 
-        .card:hover {
-            border-color: var(--brand);
-            background: var(--bg-surface-elevated);
+        .widget-action-pill.primary {
+            background: var(--md-sys-color-primary);
+            color: #FFFFFF;
         }
 
-        .card-icon {
+        .widget-action-pill.secondary {
+            background: var(--md-sys-color-surface-container-high);
+            color: var(--md-sys-color-on-surface);
+        }
+
+        /* Material 3 Expressive Shapes Section */
+        .section {
+            padding: 64px 0;
+            border-top: 1px solid var(--md-sys-color-outline-variant);
+        }
+
+        .section-header {
+            margin-bottom: 40px;
+        }
+
+        .section-kicker {
+            font-size: 12.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--md-sys-color-primary);
+            margin-bottom: 8px;
+        }
+
+        .section-title {
+            font-size: clamp(26px, 3.5vw, 36px);
+        }
+
+        /* Bento Grid with M3 Shapes */
+        .m3-bento {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 16px;
+        }
+
+        .m3-bento-card {
+            background: var(--md-sys-color-surface-container);
+            border: 1px solid var(--md-sys-color-outline);
+            padding: 28px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 20px;
+            transition: var(--transition);
+        }
+
+        .m3-bento-card:hover {
+            border-color: var(--md-sys-color-primary);
+            background: var(--md-sys-color-surface-container-high);
+        }
+
+        /* M3 Shapes variations on cards */
+        .shape-pill-cut {
+            border-radius: var(--shape-card-accent);
+        }
+
+        .shape-rounded-xl {
+            border-radius: var(--shape-xl);
+        }
+
+        .col-8 {
+            grid-column: span 8;
+        }
+
+        .col-4 {
+            grid-column: span 4;
+        }
+
+        .col-6 {
+            grid-column: span 6;
+        }
+
+        .bento-icon {
             width: 44px;
             height: 44px;
-            border-radius: var(--radius-sm);
-            background: var(--brand-alpha);
-            color: var(--brand);
+            border-radius: var(--shape-pill-cut);
+            background: var(--md-sys-color-primary-container);
+            color: var(--md-sys-color-primary);
             display: flex;
             align-items: center;
             justify-content: center;
         }
 
-        .card-icon svg {
+        .bento-icon svg {
             width: 22px;
             height: 22px;
             stroke-width: 2;
         }
 
-        .card-title {
+        .bento-title {
             font-size: 20px;
             font-weight: 700;
-            color: var(--text-primary);
+            margin-bottom: 6px;
         }
 
-        .card-desc {
+        .bento-desc {
             font-size: 14.5px;
-            color: var(--text-secondary);
+            color: var(--md-sys-color-on-surface-variant);
             line-height: 1.55;
         }
 
-        /* Screenshots Gallery */
-        .screens-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 24px;
-        }
-
-        .screen-card {
-            background: var(--bg-surface);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-md);
-            padding: 16px;
-            text-align: center;
-            transition: var(--transition);
-        }
-
-        .screen-card:hover {
-            border-color: var(--brand);
-        }
-
-        .screen-card img {
-            width: 100%;
-            height: auto;
-            border-radius: var(--radius-sm);
-            display: block;
-            margin-bottom: 14px;
-        }
-
-        .screen-title {
-            font-size: 15px;
+        .bento-pill-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            align-self: flex-start;
+            padding: 4px 10px;
+            border-radius: var(--shape-full);
+            background: var(--md-sys-color-surface-container-highest);
+            font-size: 12px;
             font-weight: 600;
-            color: var(--text-primary);
+            color: var(--md-sys-color-on-surface);
         }
 
-        .screen-sub {
+        /* Comparison Specs Table in M3 Card */
+        .specs-card {
+            background: var(--md-sys-color-surface-container);
+            border: 1px solid var(--md-sys-color-outline);
+            border-radius: var(--shape-xl);
+            overflow: hidden;
+            margin-top: 16px;
+        }
+
+        .specs-row {
+            display: grid;
+            grid-template-columns: 2fr 1.5fr 1.5fr;
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--md-sys-color-outline-variant);
+            font-size: 14px;
+            align-items: center;
+        }
+
+        .specs-row:last-child {
+            border-bottom: none;
+        }
+
+        .specs-row.header {
+            background: var(--md-sys-color-surface-container-high);
+            font-weight: 600;
             font-size: 13px;
-            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--md-sys-color-on-surface-variant);
         }
 
-        /* Banner / CTA */
+        .specs-val-good {
+            color: var(--md-sys-color-primary);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .specs-val-bad {
+            color: var(--md-sys-color-on-surface-variant);
+            opacity: 0.8;
+        }
+
+        /* CTA Section */
         .cta-box {
-            background: var(--bg-surface);
-            border: 1px solid var(--brand);
-            border-radius: var(--radius-lg);
-            padding: 56px 40px;
+            background: var(--md-sys-color-surface-container);
+            border: 1px solid var(--md-sys-color-primary);
+            border-radius: var(--shape-card-accent);
+            padding: 48px 36px;
             text-align: center;
-            margin: 60px 0;
-            position: relative;
+            margin: 40px 0;
         }
 
         .cta-title {
-            font-size: clamp(28px, 4.5vw, 44px);
-            margin-bottom: 14px;
+            font-size: clamp(28px, 4vw, 40px);
+            margin-bottom: 12px;
         }
 
         .cta-desc {
-            font-size: 17px;
-            color: var(--text-secondary);
-            max-width: 600px;
-            margin: 0 auto 32px;
+            font-size: 16px;
+            color: var(--md-sys-color-on-surface-variant);
+            max-width: 540px;
+            margin: 0 auto 28px;
         }
 
-        .cta-actions {
+        .cta-buttons {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 14px;
+            gap: 12px;
             flex-wrap: wrap;
         }
 
         /* Footer */
         footer {
-            border-top: 1px solid var(--border);
-            padding: 48px 0;
-            background: var(--bg-page);
-            font-size: 14px;
-            color: var(--text-secondary);
+            border-top: 1px solid var(--md-sys-color-outline-variant);
+            padding: 40px 0;
+            font-size: 13.5px;
+            color: var(--md-sys-color-on-surface-variant);
         }
 
         .footer-wrap {
@@ -528,50 +633,35 @@
             align-items: center;
             justify-content: space-between;
             flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .footer-nav {
+            display: flex;
             gap: 20px;
         }
 
-        .footer-brand {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-family: var(--font-display);
-            font-weight: 700;
-            color: var(--text-primary);
+        .footer-nav a:hover {
+            color: var(--md-sys-color-primary);
         }
 
-        .footer-links {
-            display: flex;
-            align-items: center;
-            gap: 24px;
-            flex-wrap: wrap;
-        }
-
-        .footer-link {
-            color: var(--text-secondary);
-            transition: var(--transition);
-        }
-
-        .footer-link:hover {
-            color: var(--brand);
-        }
-
-        /* Responsive */
-        @media (max-width: 900px) {
-            .grid-3 {
+        @media (max-width: 860px) {
+            .hero-grid {
                 grid-template-columns: 1fr;
             }
-            .grid-2 {
-                grid-template-columns: 1fr;
+            .col-8, .col-4, .col-6 {
+                grid-column: span 12;
             }
-            .screens-grid {
-                grid-template-columns: 1fr;
-            }
-            .nav-links {
+            .nav-items {
                 display: none;
             }
             .cta-box {
-                padding: 40px 24px;
+                padding: 36px 20px;
+            }
+            .specs-row {
+                grid-template-columns: 1.5fr 1fr 1fr;
+                font-size: 13px;
+                padding: 12px 16px;
             }
         }
     </style>
@@ -581,8 +671,8 @@
     <!-- Header -->
     <header>
         <div class="container nav-wrap">
-            <a href="#" class="brand">
-                <div class="brand-icon">
+            <a href="#" class="brand-link">
+                <div class="m3-logo-badge">
                     <svg viewBox="0 0 24 24">
                         <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
                         <line x1="3" y1="6" x2="21" y2="6"/>
@@ -592,215 +682,294 @@
                 <span>WhiteStore</span>
             </a>
 
-            <nav class="nav-links">
-                <a href="#features" class="nav-link">Возможности</a>
-                <a href="#screens" class="nav-link">Интерфейс</a>
-                <a href="#download" class="nav-link">Скачать</a>
-                <a href="https://t.me/whitestorefoss" target="_blank" rel="noopener" class="nav-link">Telegram</a>
-                <a href="https://github.com/Rom4ik-12/WhiteStore" target="_blank" rel="noopener" class="nav-link">GitHub</a>
+            <nav class="nav-items">
+                <a href="#features" class="nav-pill">Возможности</a>
+                <a href="#compare" class="nav-pill">Сравнение</a>
+                <a href="https://t.me/whitestorefoss" target="_blank" rel="noopener" class="nav-pill">Telegram-канал</a>
+                <a href="https://github.com/Rom4ik-12/WhiteStore" target="_blank" rel="noopener" class="nav-pill">GitHub</a>
             </nav>
 
-            <div class="nav-actions">
-                <button class="theme-btn" id="themeToggle" aria-label="Переключить тему">
-                    <span id="themeLabel">Тема</span>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <button class="m3-icon-btn" id="themeToggle" title="Переключить тему" aria-label="Переключить тему">
+                    <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"/>
+                        <line x1="12" y1="1" x2="12" y2="3"/>
+                        <line x1="12" y1="21" x2="12" y2="23"/>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                        <line x1="1" y1="12" x2="3" y2="12"/>
+                        <line x1="21" y1="12" x2="23" y2="12"/>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                    </svg>
                 </button>
-                <a href="#download" class="btn btn-brand" style="padding: 9px 18px; font-size: 14px;">
-                    Скачать v1.1.1
+
+                <a href="https://github.com/Rom4ik-12/WhiteStore/releases/download/v1.1.1/app-release.apk" class="m3-btn m3-btn-filled" style="padding: 10px 20px; font-size: 13.5px;">
+                    Скачать APK
                 </a>
             </div>
         </div>
     </header>
 
-    <!-- Main Content -->
+    <!-- Main -->
     <main>
         <!-- Hero Section -->
         <section class="hero">
-            <div class="container">
-                <div class="hero-badge">
-                    <span class="dot"></span>
-                    <span>Релиз WhiteStore v1.1.1 доступен</span>
+            <div class="container hero-grid">
+                <div>
+                    <div class="m3-chip">
+                        <span class="m3-chip-dot"></span>
+                        <span>Версия 1.1.1 • Material 3 Expressive</span>
+                    </div>
+
+                    <h1 class="hero-title">
+                        Клиент RuStore.<br>
+                        <span class="accent">Без лишнего кода.</span>
+                    </h1>
+
+                    <p class="hero-desc">
+                        Открытый FOSS-клиент официального каталога приложений. Никаких фоновых демонов, авторизации и встроенной рекламы — только поиск, загрузка и обновление.
+                    </p>
+
+                    <div class="hero-actions">
+                        <a href="https://github.com/Rom4ik-12/WhiteStore/releases/download/v1.1.1/app-release.apk" class="m3-btn m3-btn-filled">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="7 10 12 15 17 10"/>
+                                <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                            <span>Скачать WhiteStore v1.1.1</span>
+                        </a>
+
+                        <a href="https://t.me/whitestorefoss" target="_blank" rel="noopener" class="m3-btn m3-btn-tonal">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="m22 2-7 20-4-9-9-4Z"/>
+                                <path d="M22 2 11 13"/>
+                            </svg>
+                            <span>Канал в Telegram</span>
+                        </a>
+
+                        <a href="https://github.com/Rom4ik-12/WhiteStore" target="_blank" rel="noopener" class="m3-btn m3-btn-outlined">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+                            </svg>
+                            <span>GitHub</span>
+                        </a>
+                    </div>
+
+                    <div class="m3-badges-row">
+                        <div class="m3-badge">
+                            <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                            <span>2.2 МБ размер APK</span>
+                        </div>
+                        <div class="m3-badge">
+                            <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                            <span>0 трекеров</span>
+                        </div>
+                        <div class="m3-badge">
+                            <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                            <span>GPLv3 Open Source</span>
+                        </div>
+                        <div class="m3-badge">
+                            <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                            <span>Без аккаунта</span>
+                        </div>
+                    </div>
                 </div>
 
-                <h1 class="hero-title">
-                    RuStore без лишнего.<br>
-                    <span>Только приложения.</span>
-                </h1>
-
-                <p class="hero-desc">
-                    Легковесный клиент официального каталога RuStore. Чистый Material You дизайн, нулевое потребление ресурсов, открытый исходный код и полное отсутствие трекеров.
-                </p>
-
-                <div class="hero-actions">
-                    <a href="https://github.com/Rom4ik-12/WhiteStore/releases/download/v1.1.1/app-release.apk" class="btn btn-brand">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                            <polyline points="7 10 12 15 17 10"/>
-                            <line x1="12" y1="15" x2="12" y2="3"/>
-                        </svg>
-                        <span>Скачать APK (v1.1.1)</span>
-                    </a>
-
-                    <a href="https://t.me/whitestorefoss" target="_blank" rel="noopener" class="btn btn-secondary">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="m22 2-7 20-4-9-9-4Z"/>
-                            <path d="M22 2 11 13"/>
-                        </svg>
-                        <span>Канал в Telegram</span>
-                    </a>
-
-                    <a href="https://github.com/Rom4ik-12/WhiteStore" target="_blank" rel="noopener" class="btn btn-outline">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
-                        </svg>
-                        <span>GitHub Repo</span>
-                    </a>
-                </div>
-
-                <div class="hero-meta">
-                    <div class="hero-meta-item">
-                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                        <span>Размер всего 2.2 МБ</span>
+                <!-- Interactive M3 Widget Representing App State -->
+                <div class="m3-app-widget">
+                    <div class="widget-header">
+                        <div style="font-family: var(--font-display); font-size: 16px; font-weight: 700;">Управление приложениями</div>
+                        <span class="widget-store-pill">RuStore API</span>
                     </div>
-                    <div class="hero-meta-item">
-                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                        <span>Без регистрации</span>
+
+                    <div class="widget-item">
+                        <div class="widget-item-left">
+                            <div class="widget-item-icon">СБ</div>
+                            <div>
+                                <div class="widget-item-title">СберБанк Онлайн</div>
+                                <div class="widget-item-sub">v15.18.0 • 118 МБ</div>
+                            </div>
+                        </div>
+                        <button class="widget-action-pill secondary">Открыть</button>
                     </div>
-                    <div class="hero-meta-item">
-                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                        <span>Без рекламы и push-спама</span>
+
+                    <div class="widget-item">
+                        <div class="widget-item-left">
+                            <div class="widget-item-icon" style="color: #FF5A00;">OZ</div>
+                            <div>
+                                <div class="widget-item-title">Ozon Банк</div>
+                                <div class="widget-item-sub">Доступно обновление • 94 МБ</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 6px;">
+                            <button class="widget-action-pill secondary" style="color: #E53935;">Удалить</button>
+                            <button class="widget-action-pill primary">Обновить</button>
+                        </div>
                     </div>
-                    <div class="hero-meta-item">
-                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                        <span>100% Open Source (GPLv3)</span>
+
+                    <div class="widget-item">
+                        <div class="widget-item-left">
+                            <div class="widget-item-icon" style="color: #25D366;">TT</div>
+                            <div>
+                                <div class="widget-item-title">TikTok Lite</div>
+                                <div class="widget-item-sub">Готов к установке • 42 МБ</div>
+                            </div>
+                        </div>
+                        <button class="widget-action-pill primary">Установить</button>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- Preview Showcase Banner -->
-        <section class="showcase">
-            <div class="container">
-                <div class="showcase-frame">
-                    <img src="./assets/banner_triple_showcase.png" alt="Интерфейс WhiteStore: каталог, сетка, страница приложения" loading="lazy">
-                </div>
-            </div>
-        </section>
-
-        <!-- Key Features Section -->
+        <!-- Bento Grid with M3 Shapes -->
         <section class="section" id="features">
             <div class="container">
                 <div class="section-header">
-                    <div class="section-label">Преимущества</div>
-                    <h2 class="section-title">Создан для скорости и чистоты</h2>
-                    <p class="section-subtitle">Официальное API каталога RuStore без тяжелых сервисов, сбора данных и навязчивых уведомлений.</p>
+                    <div class="section-kicker">Архитектура</div>
+                    <h2 class="section-title">Создан на принципах чистого Android</h2>
                 </div>
 
-                <div class="grid-3">
-                    <div class="card">
-                        <div class="card-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <div class="m3-bento">
+                    <!-- Big Card 1 -->
+                    <div class="m3-bento-card col-8 shape-pill-cut">
+                        <div>
+                            <div class="bento-icon" style="margin-bottom: 20px;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                            </div>
+                            <h3 class="bento-title">Адаптивный каталог: Сетка и Список</h3>
+                            <p class="bento-desc">
+                                Переключайте отображение приложений в один клик. Плотная адаптивная сетка карточек под большие экраны и планшеты, либо классический аккуратный список.
+                            </p>
                         </div>
-                        <h3 class="card-title">Мгновенная работа</h3>
-                        <p class="card-desc">Приложение весит в десятки раз меньше оригинала (~2.2 МБ против 60+ МБ), открывается мгновенно и не тратит батарею в фоне.</p>
+                        <div class="bento-pill-tag">Режимы сетки 1, 2, 3 колонки</div>
                     </div>
 
-                    <div class="card">
-                        <div class="card-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    <!-- Small Card 2 -->
+                    <div class="m3-bento-card col-4 shape-rounded-xl">
+                        <div>
+                            <div class="bento-icon" style="margin-bottom: 20px;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                            </div>
+                            <h3 class="bento-title">Симметричное удаление</h3>
+                            <p class="bento-desc">
+                                Кнопка деинсталляции на экране приложения. Быстрый вызов системного диалога без лишних шагов в настройках.
+                            </p>
                         </div>
-                        <h3 class="card-title">Приватность и чистота</h3>
-                        <p class="card-desc">Никаких рекламных баннеров, аналитики, трекеров активности и обязательной авторизации по номеру телефона.</p>
+                        <div class="bento-pill-tag">REQUEST_DELETE_PACKAGES</div>
                     </div>
 
-                    <div class="card">
-                        <div class="card-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                    <!-- Small Card 3 -->
+                    <div class="m3-bento-card col-4 shape-rounded-xl">
+                        <div>
+                            <div class="bento-icon" style="margin-bottom: 20px;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            </div>
+                            <h3 class="bento-title">Мгновенный отклик</h3>
+                            <p class="bento-desc">
+                                Написан на Jetpack Compose с компилятором Kotlin 2. Никаких WebView-обёрток, реактивная работа без фризов.
+                            </p>
                         </div>
-                        <h3 class="card-title">Сетка и список</h3>
-                        <p class="card-desc">Кастомизируемый каталог: выбирайте удобный режим списка или плотную адаптивную сетку карточек под планшеты и смартфоны.</p>
+                        <div class="bento-pill-tag">Kotlin 2.0 + Compose</div>
                     </div>
 
-                    <div class="card">
-                        <div class="card-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    <!-- Big Card 4 -->
+                    <div class="m3-bento-card col-8 shape-pill-cut">
+                        <div>
+                            <div class="bento-icon" style="margin-bottom: 20px;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                            </div>
+                            <h3 class="bento-title">Умная работа с памятью и кэшем</h3>
+                            <p class="bento-desc">
+                                Автоматическая очистка временных zip-архивов сразу после извлечения APK. Безопасная очистка кэша с защитой активно устанавливаемого приложения и настройка лимита памяти.
+                            </p>
                         </div>
-                        <h3 class="card-title">Быстрое обновление</h3>
-                        <p class="card-desc">Проверка версий без сетевых зависаний, кнопка «Обновить» прямо на экране приложения и надежная очередь загрузок.</p>
-                    </div>
-
-                    <div class="card">
-                        <div class="card-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-                        </div>
-                        <h3 class="card-title">Умный контроль кэша</h3>
-                        <p class="card-desc">Автоматическое удаление zip-архивов сразу после распаковки APK, слайдер размера кэша и защита активных установок.</p>
-                    </div>
-
-                    <div class="card">
-                        <div class="card-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                        </div>
-                        <h3 class="card-title">Управление и удаление</h3>
-                        <p class="card-desc">Симметричная кнопка деинсталляции на странице приложения и прямой доступ к сохранению APK в папку «Загрузки».</p>
+                        <div class="bento-pill-tag">Экономия до 50% дискового места</div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- Screenshots Gallery -->
-        <section class="section" id="screens">
+        <!-- Spec Comparison Table -->
+        <section class="section" id="compare">
             <div class="container">
                 <div class="section-header">
-                    <div class="section-label">Скриншоты</div>
-                    <h2 class="section-title">Интерфейс Material 3</h2>
-                    <p class="section-subtitle">Интуитивная навигация, поддержка динамических тем Monet и аккуратная типографика.</p>
+                    <div class="section-kicker">Факты</div>
+                    <h2 class="section-title">Сравнение с оригинальным клиентом</h2>
                 </div>
 
-                <div class="screens-grid">
-                    <div class="screen-card">
-                        <img src="./assets/01_catalog_mockup.png" alt="Каталог WhiteStore" loading="lazy">
-                        <div class="screen-title">Главный каталог</div>
-                        <div class="screen-sub">Поиск, категории и подборки</div>
+                <div class="specs-card">
+                    <div class="specs-row header">
+                        <div>Характеристика</div>
+                        <div>WhiteStore</div>
+                        <div>Официальный RuStore</div>
                     </div>
-                    <div class="screen-card">
-                        <img src="./assets/03_catalog_grid_mockup.png" alt="Сетка приложений" loading="lazy">
-                        <div class="screen-title">Режим сетки</div>
-                        <div class="screen-sub">Компактные карточки приложений</div>
+
+                    <div class="specs-row">
+                        <div>Размер установочного APK</div>
+                        <div class="specs-val-good">2.2 МБ</div>
+                        <div class="specs-val-bad">~65 МБ (в 30 раз больше)</div>
                     </div>
-                    <div class="screen-card">
-                        <img src="./assets/04_app_detail_with_delete_mockup.png" alt="Детали приложения и удаление" loading="lazy">
-                        <div class="screen-title">Карточка приложения</div>
-                        <div class="screen-sub">Установка, обновление и удаление</div>
+
+                    <div class="specs-row">
+                        <div>Фоновые службы и демоны</div>
+                        <div class="specs-val-good">0 (только по запросу)</div>
+                        <div class="specs-val-bad">Постоянно активны</div>
+                    </div>
+
+                    <div class="specs-row">
+                        <div>Реклама и промо-баннеры</div>
+                        <div class="specs-val-good">Полностью отсутствуют</div>
+                        <div class="specs-val-bad">Есть в каталоге и пушах</div>
+                    </div>
+
+                    <div class="specs-row">
+                        <div>Требование авторизации</div>
+                        <div class="specs-val-good">Не требуется вовсе</div>
+                        <div class="specs-val-bad">Телефон / VK ID / Сбер ID</div>
+                    </div>
+
+                    <div class="specs-row">
+                        <div>Исходный код</div>
+                        <div class="specs-val-good">100% Open Source (GPLv3)</div>
+                        <div class="specs-val-bad">Закрытый проприетарный</div>
+                    </div>
+
+                    <div class="specs-row">
+                        <div>Кастомизация интерфейса</div>
+                        <div class="specs-val-good">Сетка/список, лимит скорости, цвет</div>
+                        <div class="specs-val-bad">Фиксированный лейаут</div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- CTA / Download Section -->
-        <section class="section" id="download">
+        <!-- CTA Box -->
+        <section class="section">
             <div class="container">
                 <div class="cta-box">
-                    <h2 class="cta-title">Попробуйте WhiteStore сегодня</h2>
+                    <h2 class="cta-title">Готовы к чистому опыту?</h2>
                     <p class="cta-desc">
-                        Установите актуальную версию 1.1.1 и присоединяйтесь к сообществу в Telegram для предложений и обратной связи.
+                        Скачивайте проверенный релиз WhiteStore v1.1.1 и подписывайтесь на канал в Telegram для обновлений и связи с автором.
                     </p>
 
-                    <div class="cta-actions">
-                        <a href="https://github.com/Rom4ik-12/WhiteStore/releases/download/v1.1.1/app-release.apk" class="btn btn-brand">
+                    <div class="cta-buttons">
+                        <a href="https://github.com/Rom4ik-12/WhiteStore/releases/download/v1.1.1/app-release.apk" class="m3-btn m3-btn-filled">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                                 <polyline points="7 10 12 15 17 10"/>
                                 <line x1="12" y1="15" x2="12" y2="3"/>
                             </svg>
-                            <span>Скачать APK v1.1.1</span>
+                            <span>Скачать APK (v1.1.1)</span>
                         </a>
 
-                        <a href="https://t.me/whitestorefoss" target="_blank" rel="noopener" class="btn btn-secondary">
+                        <a href="https://t.me/whitestorefoss" target="_blank" rel="noopener" class="m3-btn m3-btn-tonal">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                                 <path d="m22 2-7 20-4-9-9-4Z"/>
                                 <path d="M22 2 11 13"/>
                             </svg>
-                            <span>Telegram-канал @whitestorefoss</span>
+                            <span>Telegram @whitestorefoss</span>
                         </a>
                     </div>
                 </div>
@@ -811,52 +980,44 @@
     <!-- Footer -->
     <footer>
         <div class="container footer-wrap">
-            <div class="footer-brand">
-                <div class="brand-icon" style="width: 28px; height: 28px;">
-                    <svg viewBox="0 0 24 24" style="width: 16px; height: 16px;">
+            <div style="display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 700; color: var(--md-sys-color-on-surface);">
+                <div class="m3-logo-badge" style="width: 26px; height: 26px; border-radius: var(--shape-xs);">
+                    <svg viewBox="0 0 24 24" style="width: 15px; height: 15px;">
                         <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
                     </svg>
                 </div>
                 <span>WhiteStore</span>
             </div>
 
-            <div class="footer-links">
-                <a href="https://github.com/Rom4ik-12/WhiteStore/releases" target="_blank" rel="noopener" class="footer-link">Все релизы</a>
-                <a href="https://t.me/whitestorefoss" target="_blank" rel="noopener" class="footer-link">Telegram-сообщество</a>
-                <a href="https://github.com/Rom4ik-12/WhiteStore/blob/main/LICENSE" target="_blank" rel="noopener" class="footer-link">Лицензия GPLv3</a>
-                <a href="https://github.com/Rom4ik-12/WhiteStore" target="_blank" rel="noopener" class="footer-link">GitHub</a>
+            <div class="footer-nav">
+                <a href="https://github.com/Rom4ik-12/WhiteStore/releases" target="_blank" rel="noopener">Релизы</a>
+                <a href="https://t.me/whitestorefoss" target="_blank" rel="noopener">Telegram</a>
+                <a href="https://github.com/Rom4ik-12/WhiteStore/blob/main/LICENSE" target="_blank" rel="noopener">Лицензия</a>
+                <a href="https://github.com/Rom4ik-12/WhiteStore" target="_blank" rel="noopener">GitHub</a>
             </div>
 
-            <div style="font-size: 13px; color: var(--text-tertiary);">
-                2026 WhiteStore. Не аффилировано с VK / RuStore.
+            <div style="font-size: 12.5px; opacity: 0.7;">
+                WhiteStore • 2026. Независимый FOSS-проект.
             </div>
         </div>
     </footer>
 
-    <!-- Theme Switcher Script -->
+    <!-- Script -->
     <script>
         const root = document.documentElement;
-        const themeToggle = document.getElementById('themeToggle');
-        const themeLabel = document.getElementById('themeLabel');
+        const toggleBtn = document.getElementById('themeToggle');
 
-        function setTheme(theme) {
-            root.setAttribute('data-theme', theme);
-            localStorage.setItem('ws_theme', theme);
-            themeLabel.textContent = theme === 'dark' ? 'Черная' : 'Белая';
+        function setTheme(t) {
+            root.setAttribute('data-theme', t);
+            localStorage.setItem('ws_theme', t);
         }
 
-        // Initialize from storage or system preference
-        const savedTheme = localStorage.getItem('ws_theme');
-        if (savedTheme) {
-            setTheme(savedTheme);
-        } else {
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            setTheme(prefersDark ? 'dark' : 'light');
-        }
+        const saved = localStorage.getItem('ws_theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        setTheme(saved);
 
-        themeToggle.addEventListener('click', () => {
-            const current = root.getAttribute('data-theme');
-            setTheme(current === 'dark' ? 'light' : 'dark');
+        toggleBtn.addEventListener('click', () => {
+            const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            setTheme(next);
         });
     </script>
 </body>
