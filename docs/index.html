@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhiteStore — Легковесный клиент RuStore</title>
+    <meta name="description" content="Минималистичный, открытый и быстрый клиент каталога RuStore для Android. Без трекеров, без рекламы, Material Design 3 Expressive.">
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="WhiteStore — Легковесный клиент RuStore">
+    <meta property="og:description" content="Минималистичный, открытый и быстрый клиент каталога RuStore. Чистый интерфейс, zero-bloat, Material Design 3.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="./assets/banner_triple_showcase.png">
+
+    <!-- Fonts: Cal Sans & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://api.fontshare.com/v2/css?f[]=cal-sans@400,600,700&display=swap" rel="stylesheet">
+
+    <link rel="icon" type="image/svg+xml" href="./assets/icon.svg">
+
+    <style>
+        :root {
+            /* Brand Color: RuStore Official Blue */
+            --brand: #0077FF;
+            --brand-hover: #0066E0;
+            --brand-alpha: rgba(0, 119, 255, 0.12);
+            --brand-border: rgba(0, 119, 255, 0.3);
+
+            --radius-sm: 8px;
+            --radius-md: 14px;
+            --radius-lg: 20px;
+            --radius-full: 9999px;
+
+            --transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+            --font-display: 'Cal Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        /* Dark Theme: Pure minimal black + RuStore Blue */
+        html[data-theme="dark"] {
+            --bg-page: #000000;
+            --bg-surface: #0E0E10;
+            --bg-surface-elevated: #16161A;
+            --bg-surface-hover: #1E1E24;
+            --border: #232328;
+            --border-subtle: #1C1C20;
+            --text-primary: #FFFFFF;
+            --text-secondary: #9E9EA8;
+            --text-tertiary: #62626C;
+            --card-shadow: 0 0 0 1px #232328;
+            --tag-bg: #141418;
+            --tag-text: #D0D0DA;
+        }
+
+        /* Light Theme: Pure minimal white + RuStore Blue */
+        html[data-theme="light"] {
+            --bg-page: #FFFFFF;
+            --bg-surface: #F8F9FA;
+            --bg-surface-elevated: #FFFFFF;
+            --bg-surface-hover: #F0F2F5;
+            --border: #E5E7EB;
+            --border-subtle: #EEEEF2;
+            --text-primary: #0A0A0B;
+            --text-secondary: #5E636E;
+            --text-tertiary: #8E95A3;
+            --card-shadow: 0 0 0 1px #E5E7EB, 0 2px 4px rgba(0,0,0,0.03);
+            --tag-bg: #F0F2F5;
+            --tag-text: #374151;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-page);
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            line-height: 1.55;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            transition: background-color 0.25s ease, color 0.25s ease;
+            overflow-x: hidden;
+        }
+
+        h1, h2, h3, h4, .font-display {
+            font-family: var(--font-display);
+            letter-spacing: -0.02em;
+            font-weight: 700;
+            line-height: 1.15;
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1120px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* Header / Navbar */
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: var(--bg-page);
+            border-bottom: 1px solid var(--border);
+            transition: background-color 0.25s ease, border-color 0.25s ease;
+        }
+
+        .nav-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 72px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: var(--font-display);
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+        .brand-icon {
+            width: 38px;
+            height: 38px;
+            background: var(--brand);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #FFFFFF;
+        }
+
+        .brand-icon svg {
+            width: 22px;
+            height: 22px;
+            fill: none;
+            stroke: #FFFFFF;
+            stroke-width: 2.2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 28px;
+        }
+
+        .nav-link {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            transition: var(--transition);
+        }
+
+        .nav-link:hover {
+            color: var(--text-primary);
+        }
+
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .theme-btn {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 9px 12px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: var(--transition);
+        }
+
+        .theme-btn:hover {
+            background: var(--bg-surface-hover);
+            border-color: var(--brand);
+        }
+
+        /* Buttons (Strict flat minimal, no gradients) */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-family: var(--font-body);
+            font-size: 15px;
+            font-weight: 600;
+            padding: 13px 24px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: var(--transition);
+            border: 1px solid transparent;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .btn svg {
+            width: 19px;
+            height: 19px;
+            flex-shrink: 0;
+        }
+
+        .btn-brand {
+            background: var(--brand);
+            color: #FFFFFF;
+            border-color: var(--brand);
+        }
+
+        .btn-brand:hover {
+            background: var(--brand-hover);
+            border-color: var(--brand-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: var(--bg-surface);
+            color: var(--text-primary);
+            border-color: var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-surface-hover);
+            border-color: var(--text-secondary);
+            transform: translateY(-1px);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--text-primary);
+            border-color: var(--border);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--brand);
+            color: var(--brand);
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 80px 0 60px;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            background: var(--brand-alpha);
+            border: 1px solid var(--brand-border);
+            border-radius: var(--radius-full);
+            color: var(--brand);
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 24px;
+            font-family: var(--font-body);
+        }
+
+        .hero-badge .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--brand);
+        }
+
+        .hero-title {
+            font-size: clamp(38px, 6.5vw, 68px);
+            line-height: 1.08;
+            margin-bottom: 22px;
+            letter-spacing: -0.03em;
+        }
+
+        .hero-title span {
+            color: var(--brand);
+        }
+
+        .hero-desc {
+            font-size: clamp(16px, 2.2vw, 20px);
+            color: var(--text-secondary);
+            max-width: 680px;
+            margin: 0 auto 36px;
+            font-weight: 400;
+            line-height: 1.5;
+        }
+
+        .hero-actions {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin-bottom: 48px;
+        }
+
+        .hero-meta {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+            font-size: 13px;
+            color: var(--text-tertiary);
+            flex-wrap: wrap;
+        }
+
+        .hero-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .hero-meta-item svg {
+            width: 15px;
+            height: 15px;
+            stroke: var(--brand);
+        }
+
+        /* Preview / Showcase Banner */
+        .showcase {
+            margin: 20px 0 90px;
+        }
+
+        .showcase-frame {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            overflow: hidden;
+            text-align: center;
+        }
+
+        .showcase-frame img {
+            width: 100%;
+            height: auto;
+            border-radius: var(--radius-md);
+            display: block;
+        }
+
+        /* Grid section */
+        .section {
+            padding: 70px 0;
+            border-top: 1px solid var(--border);
+        }
+
+        .section-header {
+            margin-bottom: 48px;
+            text-align: left;
+        }
+
+        .section-label {
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--brand);
+            margin-bottom: 10px;
+            font-family: var(--font-body);
+        }
+
+        .section-title {
+            font-size: clamp(28px, 4vw, 42px);
+            margin-bottom: 12px;
+        }
+
+        .section-subtitle {
+            font-size: 17px;
+            color: var(--text-secondary);
+            max-width: 600px;
+        }
+
+        /* Cards Grid */
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            transition: var(--transition);
+        }
+
+        .card:hover {
+            border-color: var(--brand);
+            background: var(--bg-surface-elevated);
+        }
+
+        .card-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: var(--radius-sm);
+            background: var(--brand-alpha);
+            color: var(--brand);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card-icon svg {
+            width: 22px;
+            height: 22px;
+            stroke-width: 2;
+        }
+
+        .card-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .card-desc {
+            font-size: 14.5px;
+            color: var(--text-secondary);
+            line-height: 1.55;
+        }
+
+        /* Screenshots Gallery */
+        .screens-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+        }
+
+        .screen-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            text-align: center;
+            transition: var(--transition);
+        }
+
+        .screen-card:hover {
+            border-color: var(--brand);
+        }
+
+        .screen-card img {
+            width: 100%;
+            height: auto;
+            border-radius: var(--radius-sm);
+            display: block;
+            margin-bottom: 14px;
+        }
+
+        .screen-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .screen-sub {
+            font-size: 13px;
+            color: var(--text-tertiary);
+        }
+
+        /* Banner / CTA */
+        .cta-box {
+            background: var(--bg-surface);
+            border: 1px solid var(--brand);
+            border-radius: var(--radius-lg);
+            padding: 56px 40px;
+            text-align: center;
+            margin: 60px 0;
+            position: relative;
+        }
+
+        .cta-title {
+            font-size: clamp(28px, 4.5vw, 44px);
+            margin-bottom: 14px;
+        }
+
+        .cta-desc {
+            font-size: 17px;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto 32px;
+        }
+
+        .cta-actions {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        /* Footer */
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 48px 0;
+            background: var(--bg-page);
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .footer-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .footer-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: var(--font-display);
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .footer-links {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+
+        .footer-link {
+            color: var(--text-secondary);
+            transition: var(--transition);
+        }
+
+        .footer-link:hover {
+            color: var(--brand);
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .grid-3 {
+                grid-template-columns: 1fr;
+            }
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+            .screens-grid {
+                grid-template-columns: 1fr;
+            }
+            .nav-links {
+                display: none;
+            }
+            .cta-box {
+                padding: 40px 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header>
+        <div class="container nav-wrap">
+            <a href="#" class="brand">
+                <div class="brand-icon">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+                        <line x1="3" y1="6" x2="21" y2="6"/>
+                        <path d="M16 10a4 4 0 0 1-8 0"/>
+                    </svg>
+                </div>
+                <span>WhiteStore</span>
+            </a>
+
+            <nav class="nav-links">
+                <a href="#features" class="nav-link">Возможности</a>
+                <a href="#screens" class="nav-link">Интерфейс</a>
+                <a href="#download" class="nav-link">Скачать</a>
+                <a href="https://t.me/whitestorefoss" target="_blank" rel="noopener" class="nav-link">Telegram</a>
+                <a href="https://github.com/Rom4ik-12/WhiteStore" target="_blank" rel="noopener" class="nav-link">GitHub</a>
+            </nav>
+
+            <div class="nav-actions">
+                <button class="theme-btn" id="themeToggle" aria-label="Переключить тему">
+                    <span id="themeLabel">Тема</span>
+                </button>
+                <a href="#download" class="btn btn-brand" style="padding: 9px 18px; font-size: 14px;">
+                    Скачать v1.1.1
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main>
+        <!-- Hero Section -->
+        <section class="hero">
+            <div class="container">
+                <div class="hero-badge">
+                    <span class="dot"></span>
+                    <span>Релиз WhiteStore v1.1.1 доступен</span>
+                </div>
+
+                <h1 class="hero-title">
+                    RuStore без лишнего.<br>
+                    <span>Только приложения.</span>
+                </h1>
+
+                <p class="hero-desc">
+                    Легковесный клиент официального каталога RuStore. Чистый Material You дизайн, нулевое потребление ресурсов, открытый исходный код и полное отсутствие трекеров.
+                </p>
+
+                <div class="hero-actions">
+                    <a href="https://github.com/Rom4ik-12/WhiteStore/releases/download/v1.1.1/app-release.apk" class="btn btn-brand">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        <span>Скачать APK (v1.1.1)</span>
+                    </a>
+
+                    <a href="https://t.me/whitestorefoss" target="_blank" rel="noopener" class="btn btn-secondary">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="m22 2-7 20-4-9-9-4Z"/>
+                            <path d="M22 2 11 13"/>
+                        </svg>
+                        <span>Канал в Telegram</span>
+                    </a>
+
+                    <a href="https://github.com/Rom4ik-12/WhiteStore" target="_blank" rel="noopener" class="btn btn-outline">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+                        </svg>
+                        <span>GitHub Repo</span>
+                    </a>
+                </div>
+
+                <div class="hero-meta">
+                    <div class="hero-meta-item">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        <span>Размер всего 2.2 МБ</span>
+                    </div>
+                    <div class="hero-meta-item">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        <span>Без регистрации</span>
+                    </div>
+                    <div class="hero-meta-item">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        <span>Без рекламы и push-спама</span>
+                    </div>
+                    <div class="hero-meta-item">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        <span>100% Open Source (GPLv3)</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Preview Showcase Banner -->
+        <section class="showcase">
+            <div class="container">
+                <div class="showcase-frame">
+                    <img src="./assets/banner_triple_showcase.png" alt="Интерфейс WhiteStore: каталог, сетка, страница приложения" loading="lazy">
+                </div>
+            </div>
+        </section>
+
+        <!-- Key Features Section -->
+        <section class="section" id="features">
+            <div class="container">
+                <div class="section-header">
+                    <div class="section-label">Преимущества</div>
+                    <h2 class="section-title">Создан для скорости и чистоты</h2>
+                    <p class="section-subtitle">Официальное API каталога RuStore без тяжелых сервисов, сбора данных и навязчивых уведомлений.</p>
+                </div>
+
+                <div class="grid-3">
+                    <div class="card">
+                        <div class="card-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        </div>
+                        <h3 class="card-title">Мгновенная работа</h3>
+                        <p class="card-desc">Приложение весит в десятки раз меньше оригинала (~2.2 МБ против 60+ МБ), открывается мгновенно и не тратит батарею в фоне.</p>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                        </div>
+                        <h3 class="card-title">Приватность и чистота</h3>
+                        <p class="card-desc">Никаких рекламных баннеров, аналитики, трекеров активности и обязательной авторизации по номеру телефона.</p>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                        </div>
+                        <h3 class="card-title">Сетка и список</h3>
+                        <p class="card-desc">Кастомизируемый каталог: выбирайте удобный режим списка или плотную адаптивную сетку карточек под планшеты и смартфоны.</p>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        </div>
+                        <h3 class="card-title">Быстрое обновление</h3>
+                        <p class="card-desc">Проверка версий без сетевых зависаний, кнопка «Обновить» прямо на экране приложения и надежная очередь загрузок.</p>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                        </div>
+                        <h3 class="card-title">Умный контроль кэша</h3>
+                        <p class="card-desc">Автоматическое удаление zip-архивов сразу после распаковки APK, слайдер размера кэша и защита активных установок.</p>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                        </div>
+                        <h3 class="card-title">Управление и удаление</h3>
+                        <p class="card-desc">Симметричная кнопка деинсталляции на странице приложения и прямой доступ к сохранению APK в папку «Загрузки».</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Screenshots Gallery -->
+        <section class="section" id="screens">
+            <div class="container">
+                <div class="section-header">
+                    <div class="section-label">Скриншоты</div>
+                    <h2 class="section-title">Интерфейс Material 3</h2>
+                    <p class="section-subtitle">Интуитивная навигация, поддержка динамических тем Monet и аккуратная типографика.</p>
+                </div>
+
+                <div class="screens-grid">
+                    <div class="screen-card">
+                        <img src="./assets/01_catalog_mockup.png" alt="Каталог WhiteStore" loading="lazy">
+                        <div class="screen-title">Главный каталог</div>
+                        <div class="screen-sub">Поиск, категории и подборки</div>
+                    </div>
+                    <div class="screen-card">
+                        <img src="./assets/03_catalog_grid_mockup.png" alt="Сетка приложений" loading="lazy">
+                        <div class="screen-title">Режим сетки</div>
+                        <div class="screen-sub">Компактные карточки приложений</div>
+                    </div>
+                    <div class="screen-card">
+                        <img src="./assets/04_app_detail_with_delete_mockup.png" alt="Детали приложения и удаление" loading="lazy">
+                        <div class="screen-title">Карточка приложения</div>
+                        <div class="screen-sub">Установка, обновление и удаление</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA / Download Section -->
+        <section class="section" id="download">
+            <div class="container">
+                <div class="cta-box">
+                    <h2 class="cta-title">Попробуйте WhiteStore сегодня</h2>
+                    <p class="cta-desc">
+                        Установите актуальную версию 1.1.1 и присоединяйтесь к сообществу в Telegram для предложений и обратной связи.
+                    </p>
+
+                    <div class="cta-actions">
+                        <a href="https://github.com/Rom4ik-12/WhiteStore/releases/download/v1.1.1/app-release.apk" class="btn btn-brand">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="7 10 12 15 17 10"/>
+                                <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                            <span>Скачать APK v1.1.1</span>
+                        </a>
+
+                        <a href="https://t.me/whitestorefoss" target="_blank" rel="noopener" class="btn btn-secondary">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                                <path d="m22 2-7 20-4-9-9-4Z"/>
+                                <path d="M22 2 11 13"/>
+                            </svg>
+                            <span>Telegram-канал @whitestorefoss</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container footer-wrap">
+            <div class="footer-brand">
+                <div class="brand-icon" style="width: 28px; height: 28px;">
+                    <svg viewBox="0 0 24 24" style="width: 16px; height: 16px;">
+                        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+                    </svg>
+                </div>
+                <span>WhiteStore</span>
+            </div>
+
+            <div class="footer-links">
+                <a href="https://github.com/Rom4ik-12/WhiteStore/releases" target="_blank" rel="noopener" class="footer-link">Все релизы</a>
+                <a href="https://t.me/whitestorefoss" target="_blank" rel="noopener" class="footer-link">Telegram-сообщество</a>
+                <a href="https://github.com/Rom4ik-12/WhiteStore/blob/main/LICENSE" target="_blank" rel="noopener" class="footer-link">Лицензия GPLv3</a>
+                <a href="https://github.com/Rom4ik-12/WhiteStore" target="_blank" rel="noopener" class="footer-link">GitHub</a>
+            </div>
+
+            <div style="font-size: 13px; color: var(--text-tertiary);">
+                2026 WhiteStore. Не аффилировано с VK / RuStore.
+            </div>
+        </div>
+    </footer>
+
+    <!-- Theme Switcher Script -->
+    <script>
+        const root = document.documentElement;
+        const themeToggle = document.getElementById('themeToggle');
+        const themeLabel = document.getElementById('themeLabel');
+
+        function setTheme(theme) {
+            root.setAttribute('data-theme', theme);
+            localStorage.setItem('ws_theme', theme);
+            themeLabel.textContent = theme === 'dark' ? 'Черная' : 'Белая';
+        }
+
+        // Initialize from storage or system preference
+        const savedTheme = localStorage.getItem('ws_theme');
+        if (savedTheme) {
+            setTheme(savedTheme);
+        } else {
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            setTheme(prefersDark ? 'dark' : 'light');
+        }
+
+        themeToggle.addEventListener('click', () => {
+            const current = root.getAttribute('data-theme');
+            setTheme(current === 'dark' ? 'light' : 'dark');
+        });
+    </script>
+</body>
+</html>
