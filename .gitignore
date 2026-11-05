@@ -19,3 +19,4 @@ local.properties
 # Intermediate files
 app/build/
 build/
+docs/
