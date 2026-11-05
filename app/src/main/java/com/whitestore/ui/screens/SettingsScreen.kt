@@ -49,6 +49,7 @@ import com.whitestore.util.TimeFormatUtils
 @Composable
 fun SettingsScreen(
     onNavigateToDesignSettings: () -> Unit = {},
+    onNavigateToHomeScreenSettings: () -> Unit = {},
     onNavigateToStorageSettings: () -> Unit = {},
     onNavigateToInstallSettings: () -> Unit = {},
     onNavigateToIgnoredApps: () -> Unit = {},
@@ -78,7 +79,62 @@ fun SettingsScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // 1. Дизайн
+            // 1. Главный экран (Кастомизация)
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(22.dp))
+                        .clickable(onClick = onNavigateToHomeScreenSettings),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.primaryContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.DashboardCustomize,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(14.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Главный экран",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "Кастомизация разделов, карусели, поиска и рекомендаций",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.outline
+                        )
+                    }
+                }
+            }
+
+            // 2. Дизайн
             item {
                 Card(
                     modifier = Modifier
@@ -99,13 +155,13 @@ fun SettingsScreen(
                             modifier = Modifier
                                 .size(40.dp)
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(MaterialTheme.colorScheme.primaryContainer),
+                                .background(MaterialTheme.colorScheme.secondaryContainer),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Palette,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer
                             )
                         }
 
@@ -133,7 +189,7 @@ fun SettingsScreen(
                 }
             }
 
-            // 2. Память и данные
+            // 3. Память и данные
             item {
                 Card(
                     modifier = Modifier
@@ -786,6 +842,491 @@ fun DesignSettingsScreen(
                                 onCheckedChange = {
                                     showUpdateCountBadge = it
                                     AppPreferences.setShowUpdateCountBadge(context, it)
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Sub-screen: "Главный экран" - супер-кастомизация главной страницы
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HomeScreenSettingsScreen(
+    onBack: () -> Unit
+) {
+    val context = LocalContext.current
+    var showSubtitle by remember { mutableStateOf(AppPreferences.homeShowHeaderSubtitle.value) }
+    var showSearchBar by remember { mutableStateOf(AppPreferences.homeShowSearchBar.value) }
+    var showCategoryChips by remember { mutableStateOf(AppPreferences.homeShowCategoryChips.value) }
+    var showFeaturedCarousel by remember { mutableStateOf(AppPreferences.homeShowFeaturedCarousel.value) }
+    var showRecommendedSection by remember { mutableStateOf(AppPreferences.homeShowRecommendedSection.value) }
+    var showNewAppsSection by remember { mutableStateOf(AppPreferences.homeShowNewAppsSection.value) }
+    var showGamesSection by remember { mutableStateOf(AppPreferences.homeShowGamesSection.value) }
+    var catalogStyle by remember { mutableStateOf(AppPreferences.homeCatalogStyle.value) }
+    var showDeveloper by remember { mutableStateOf(AppPreferences.homeShowAppDeveloper.value) }
+    var showRating by remember { mutableStateOf(AppPreferences.homeShowAppRating.value) }
+    var showSize by remember { mutableStateOf(AppPreferences.homeShowAppSize.value) }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Главный экран") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            )
+        }
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize(),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Раздел: Верхняя панель и поиск
+            item {
+                Text(
+                    text = "Шапка и поиск",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
+                )
+            }
+
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(22.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val newVal = !showSubtitle
+                                    showSubtitle = newVal
+                                    AppPreferences.setHomeShowHeaderSubtitle(context, newVal)
+                                },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Подзаголовок «Чистый каталог...»",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = "Показывать поясняющий текст под логотипом в шапке",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = showSubtitle,
+                                onCheckedChange = {
+                                    showSubtitle = it
+                                    AppPreferences.setHomeShowHeaderSubtitle(context, it)
+                                }
+                            )
+                        }
+
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 12.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val newVal = !showSearchBar
+                                    showSearchBar = newVal
+                                    AppPreferences.setHomeShowSearchBar(context, newVal)
+                                },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Строка быстрого поиска",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = "Поле ввода поиска прямо на главном экране",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = showSearchBar,
+                                onCheckedChange = {
+                                    showSearchBar = it
+                                    AppPreferences.setHomeShowSearchBar(context, it)
+                                }
+                            )
+                        }
+
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 12.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val newVal = !showCategoryChips
+                                    showCategoryChips = newVal
+                                    AppPreferences.setHomeShowCategoryChips(context, newVal)
+                                },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Лента тегов и категорий",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = "Горизонтальные чипсы фильтрации («Банки», «Игры» и др.)",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = showCategoryChips,
+                                onCheckedChange = {
+                                    showCategoryChips = it
+                                    AppPreferences.setHomeShowCategoryChips(context, it)
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Раздел: Блоки и витрина
+            item {
+                Text(
+                    text = "Блоки и подборки",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = 4.dp, top = 4.dp, bottom = 2.dp)
+                )
+            }
+
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(22.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val newVal = !showFeaturedCarousel
+                                    showFeaturedCarousel = newVal
+                                    AppPreferences.setHomeShowFeaturedCarousel(context, newVal)
+                                },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Карусель «В центре внимания»",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = "Горизонтальные большие карточки топ-приложений",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = showFeaturedCarousel,
+                                onCheckedChange = {
+                                    showFeaturedCarousel = it
+                                    AppPreferences.setHomeShowFeaturedCarousel(context, it)
+                                }
+                            )
+                        }
+
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 12.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val newVal = !showRecommendedSection
+                                    showRecommendedSection = newVal
+                                    AppPreferences.setHomeShowRecommendedSection(context, newVal)
+                                },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Раздел «Рекомендуемое»",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = "Горизонтальная лента персональных рекомендаций",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = showRecommendedSection,
+                                onCheckedChange = {
+                                    showRecommendedSection = it
+                                    AppPreferences.setHomeShowRecommendedSection(context, it)
+                                }
+                            )
+                        }
+
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 12.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val newVal = !showNewAppsSection
+                                    showNewAppsSection = newVal
+                                    AppPreferences.setHomeShowNewAppsSection(context, newVal)
+                                },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Раздел «Новинки»",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = "Блок свежих релизов и недавно добавленных приложений",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = showNewAppsSection,
+                                onCheckedChange = {
+                                    showNewAppsSection = it
+                                    AppPreferences.setHomeShowNewAppsSection(context, it)
+                                }
+                            )
+                        }
+
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 12.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val newVal = !showGamesSection
+                                    showGamesSection = newVal
+                                    AppPreferences.setHomeShowGamesSection(context, newVal)
+                                },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Раздел «Игры»",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = "Отдельный блок популярных мобильных игр",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = showGamesSection,
+                                onCheckedChange = {
+                                    showGamesSection = it
+                                    AppPreferences.setHomeShowGamesSection(context, it)
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Раздел: Внешний вид карточек приложений
+            item {
+                Text(
+                    text = "Карточки каталога",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = 4.dp, top = 4.dp, bottom = 2.dp)
+                )
+            }
+
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(22.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Вид основного каталога",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        ConnectedButtonGroup(
+                            items = listOf("LIST", "GRID"),
+                            selectedItem = catalogStyle,
+                            onItemSelected = { style ->
+                                catalogStyle = style
+                                AppPreferences.setHomeCatalogStyle(context, style)
+                            },
+                            labelProvider = { style ->
+                                if (style == "LIST") "Список" else "Сетка"
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 14.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val newVal = !showDeveloper
+                                    showDeveloper = newVal
+                                    AppPreferences.setHomeShowAppDeveloper(context, newVal)
+                                },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Разработчик / краткое описание",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = "Показывать вторую строку с автором или описанием",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = showDeveloper,
+                                onCheckedChange = {
+                                    showDeveloper = it
+                                    AppPreferences.setHomeShowAppDeveloper(context, it)
+                                }
+                            )
+                        }
+
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 12.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val newVal = !showRating
+                                    showRating = newVal
+                                    AppPreferences.setHomeShowAppRating(context, newVal)
+                                },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Оценка и рейтинг приложений",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = "Звезда и средняя оценка в строке приложения",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = showRating,
+                                onCheckedChange = {
+                                    showRating = it
+                                    AppPreferences.setHomeShowAppRating(context, it)
+                                }
+                            )
+                        }
+
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 12.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val newVal = !showSize
+                                    showSize = newVal
+                                    AppPreferences.setHomeShowAppSize(context, newVal)
+                                },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Количество загрузок",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = "Текст количества скачиваний рядом с рейтингом",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = showSize,
+                                onCheckedChange = {
+                                    showSize = it
+                                    AppPreferences.setHomeShowAppSize(context, it)
                                 }
                             )
                         }

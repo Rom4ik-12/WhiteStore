@@ -30,7 +30,10 @@ fun AppCardItem(
     item: AppSummaryItem,
     isInstalled: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showSubtitle: Boolean = true,
+    showRating: Boolean = true,
+    showExtraInfo: Boolean = true
 ) {
     Card(
         modifier = modifier
@@ -108,14 +111,17 @@ fun AppCardItem(
                     )
                 }
 
-                if (!item.shortDescription.isNullOrBlank()) {
-                    Text(
-                        text = item.shortDescription,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                if (showSubtitle) {
+                    val subText = item.companyName?.takeIf { it.isNotBlank() } ?: item.shortDescription
+                    if (!subText.isNullOrBlank()) {
+                        Text(
+                            text = subText,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -124,33 +130,37 @@ fun AppCardItem(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    item.averageUserRating?.let { rating ->
-                        if (rating > 0) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Star,
-                                    contentDescription = "Rating",
-                                    tint = Color(0xFFFFB800),
-                                    modifier = Modifier.size(13.dp)
-                                )
-                                Spacer(modifier = Modifier.width(2.dp))
-                                Text(
-                                    text = String.format("%.1f", rating),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Medium
-                                )
+                    if (showRating) {
+                        item.averageUserRating?.let { rating ->
+                            if (rating > 0) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Star,
+                                        contentDescription = "Rating",
+                                        tint = Color(0xFFFFB800),
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(2.dp))
+                                    Text(
+                                        text = String.format("%.1f", rating),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
                             }
                         }
                     }
 
-                    item.roundedDownloadsText?.let { downloads ->
-                        Text(
-                            text = downloads,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.outline
-                        )
+                    if (showExtraInfo) {
+                        item.roundedDownloadsText?.let { downloads ->
+                            Text(
+                                text = downloads,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.outline
+                            )
+                        }
                     }
                 }
             }

@@ -228,7 +228,16 @@ class AppInstaller(
 
             val targetApkFile = if (isZip) {
                 updateState(packageName, InstallState.Extracting)
-                extractApkFromZip(downloadedFile, apkDir, packageName) ?: downloadedFile
+                val extracted = extractApkFromZip(downloadedFile, apkDir, packageName)
+                // Remove the zip archive immediately to free up device cache space
+                try {
+                    if (downloadedFile.exists()) {
+                        downloadedFile.delete()
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to delete zip after extraction", e)
+                }
+                extracted ?: downloadedFile
             } else {
                 downloadedFile
             }
@@ -254,8 +263,8 @@ class AppInstaller(
                 promptInstall(targetApkFile)
             }
 
-            // Check if storage cache limit is exceeded and prune oldest if necessary
-            com.whitestore.util.StorageManager.pruneApksIfNeeded(context)
+            // Check if storage cache limit is exceeded and prune oldest if necessary, protecting targetApkFile
+            com.whitestore.util.StorageManager.pruneApksIfNeeded(context, excludeFile = targetApkFile)
         } catch (e: Exception) {
             Log.e(TAG, "Download error", e)
             val msg = e.localizedMessage ?: "Ошибка скачивания"
@@ -344,6 +353,41 @@ class AppInstaller(
             }
         } catch (e: Exception) {
             Log.e(TAG, "openApp error", e)
+        }
+    }
+
+    fun uninstallApp(packageName: String) {
+        try {
+            Log.d(TAG, "Initiating uninstallation for $packageName")
+            // Try ACTION_UNINSTALL_PACKAGE first (standard uninstaller prompt)
+            val uninstallIntent = Intent(Intent.ACTION_UNINSTALL_PACKAGE).apply {
+                data = Uri.fromParts("package", packageName, null)
+                putExtra(Intent.EXTRA_RETURN_RESULT, false)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            if (uninstallIntent.resolveActivity(context.packageManager) != null) {
+                context.startActivity(uninstallIntent)
+                return
+            }
+
+            // Fallback to ACTION_DELETE
+            val deleteIntent = Intent(Intent.ACTION_DELETE).apply {
+                data = Uri.fromParts("package", packageName, null)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            context.startActivity(deleteIntent)
+        } catch (e: Exception) {
+            Log.e(TAG, "uninstallApp error, fallback to application settings", e)
+            try {
+                // Secondary fallback: open App Info in Settings where user can click Uninstall
+                val settingsIntent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.fromParts("package", packageName, null)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(settingsIntent)
+            } catch (e2: Exception) {
+                showToast("Не удалось запустить удаление: ${e.message}")
+            }
         }
     }
 

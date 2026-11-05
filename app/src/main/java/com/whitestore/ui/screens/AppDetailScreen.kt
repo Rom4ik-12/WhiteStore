@@ -48,14 +48,36 @@ fun AppDetailScreen(
     val isDetailLoading by viewModel.isDetailLoading.collectAsState()
     val installStates by installer.installState.collectAsState()
     val packageTrigger by installer.packageUpdateTrigger.collectAsState()
+    val context = LocalContext.current
 
     val isInstalled = remember(packageName, packageTrigger) {
         installer.isAppInstalled(packageName)
     }
+
+    val installedVersionCode = remember(packageName, packageTrigger, isInstalled) {
+        if (!isInstalled) null
+        else {
+            try {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                    context.packageManager.getPackageInfo(packageName, 0).longVersionCode
+                } else {
+                    @Suppress("DEPRECATION")
+                    context.packageManager.getPackageInfo(packageName, 0).versionCode.toLong()
+                }
+            } catch (e: Exception) {
+                null
+            }
+        }
+    }
+
+    val hasUpdate = remember(installedVersionCode, detail?.versionCode) {
+        val remoteCode = detail?.versionCode
+        isInstalled && installedVersionCode != null && remoteCode != null && remoteCode > installedVersionCode
+    }
+
     val installState = installStates[packageName] ?: InstallState.Idle
 
     val summary = remember(packageName) { viewModel.appSummaryCache[packageName] }
-    val context = LocalContext.current
 
     var selectedImageIndex by remember { mutableStateOf<Int?>(null) }
 
@@ -292,7 +314,9 @@ fun AppDetailScreen(
                 // Primary Install / Open Button (Large Expressive with clear statuses)
                 item {
                     val onAction = {
-                        if (isInstalled) {
+                        if (hasUpdate) {
+                            viewModel.startDownload(app.appId, app.packageName, app.appName)
+                        } else if (isInstalled) {
                             installer.openApp(app.packageName)
                         } else {
                             viewModel.startDownload(app.appId, app.packageName, app.appName)
@@ -457,7 +481,38 @@ fun AppDetailScreen(
                                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
+                                // Mirror delete button on the opposite side if app is installed
                                 if (isInstalled) {
+                                    FilledTonalIconButton(
+                                        onClick = {
+                                            installer.uninstallApp(app.packageName)
+                                        },
+                                        modifier = Modifier.size(54.dp),
+                                        shape = RoundedCornerShape(20.dp),
+                                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                                            contentColor = MaterialTheme.colorScheme.onErrorContainer
+                                        )
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.DeleteOutline,
+                                            contentDescription = "Удалить приложение",
+                                            tint = MaterialTheme.colorScheme.onErrorContainer
+                                        )
+                                    }
+                                }
+
+                                if (hasUpdate) {
+                                    Button(
+                                        onClick = onAction,
+                                        modifier = Modifier.weight(1f).height(54.dp),
+                                        shape = RoundedCornerShape(20.dp)
+                                    ) {
+                                        Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(22.dp))
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Text("Обновить", style = MaterialTheme.typography.titleMedium)
+                                    }
+                                } else if (isInstalled) {
                                     FilledTonalButton(
                                         onClick = onAction,
                                         modifier = Modifier.weight(1f).height(54.dp),

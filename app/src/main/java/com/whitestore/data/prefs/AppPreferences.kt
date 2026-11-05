@@ -32,6 +32,19 @@ object AppPreferences {
     private const val KEY_DELETE_APK_AFTER_INSTALL = "delete_apk_after_install"
     private const val KEY_DOWNLOAD_SPEED_LIMIT_KB = "download_speed_limit_kb"
 
+    // Home screen customisation keys
+    private const val KEY_HOME_SHOW_HEADER_SUBTITLE = "home_show_header_subtitle"
+    private const val KEY_HOME_SHOW_SEARCH_BAR = "home_show_search_bar"
+    private const val KEY_HOME_SHOW_CATEGORY_CHIPS = "home_show_category_chips"
+    private const val KEY_HOME_SHOW_FEATURED_CAROUSEL = "home_show_featured_carousel"
+    private const val KEY_HOME_SHOW_RECOMMENDED_SECTION = "home_show_recommended_section"
+    private const val KEY_HOME_SHOW_NEW_APPS_SECTION = "home_show_new_apps_section"
+    private const val KEY_HOME_SHOW_GAMES_SECTION = "home_show_games_section"
+    private const val KEY_HOME_CATALOG_STYLE = "home_catalog_style" // "LIST" or "GRID"
+    private const val KEY_HOME_SHOW_APP_DEVELOPER = "home_show_app_developer"
+    private const val KEY_HOME_SHOW_APP_RATING = "home_show_app_rating"
+    private const val KEY_HOME_SHOW_APP_SIZE = "home_show_app_size"
+
     val openAfterInstall = mutableStateOf(false)
     val deleteApkAfterInstall = mutableStateOf(false)
     val ignoredPackages = mutableStateOf<Set<String>>(emptySet())
@@ -44,6 +57,19 @@ object AppPreferences {
     val updateNetworkMode = mutableStateOf(UpdateNetworkMode.ANY)
     val maxCacheSizeMb = mutableStateOf(1024) // 1024 MB (1 GB) default. 0 = Unlimited.
     val downloadSpeedLimitKb = mutableStateOf(0) // 0 = No speed limit, otherwise KB/s (e.g. 512, 1024, 2048, 5120)
+
+    // Home screen customisation states
+    val homeShowHeaderSubtitle = mutableStateOf(true)
+    val homeShowSearchBar = mutableStateOf(true)
+    val homeShowCategoryChips = mutableStateOf(true)
+    val homeShowFeaturedCarousel = mutableStateOf(true)
+    val homeShowRecommendedSection = mutableStateOf(true)
+    val homeShowNewAppsSection = mutableStateOf(false)
+    val homeShowGamesSection = mutableStateOf(false)
+    val homeCatalogStyle = mutableStateOf("LIST") // "LIST" or "GRID"
+    val homeShowAppDeveloper = mutableStateOf(true)
+    val homeShowAppRating = mutableStateOf(true)
+    val homeShowAppSize = mutableStateOf(true)
 
     fun init(context: Context) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -69,6 +95,19 @@ object AppPreferences {
         }
         maxCacheSizeMb.value = prefs.getInt(KEY_MAX_CACHE_SIZE_MB, 1024)
         downloadSpeedLimitKb.value = prefs.getInt(KEY_DOWNLOAD_SPEED_LIMIT_KB, 0)
+
+        // Home customisation
+        homeShowHeaderSubtitle.value = prefs.getBoolean(KEY_HOME_SHOW_HEADER_SUBTITLE, true)
+        homeShowSearchBar.value = prefs.getBoolean(KEY_HOME_SHOW_SEARCH_BAR, true)
+        homeShowCategoryChips.value = prefs.getBoolean(KEY_HOME_SHOW_CATEGORY_CHIPS, true)
+        homeShowFeaturedCarousel.value = prefs.getBoolean(KEY_HOME_SHOW_FEATURED_CAROUSEL, true)
+        homeShowRecommendedSection.value = prefs.getBoolean(KEY_HOME_SHOW_RECOMMENDED_SECTION, true)
+        homeShowNewAppsSection.value = prefs.getBoolean(KEY_HOME_SHOW_NEW_APPS_SECTION, false)
+        homeShowGamesSection.value = prefs.getBoolean(KEY_HOME_SHOW_GAMES_SECTION, false)
+        homeCatalogStyle.value = prefs.getString(KEY_HOME_CATALOG_STYLE, "LIST") ?: "LIST"
+        homeShowAppDeveloper.value = prefs.getBoolean(KEY_HOME_SHOW_APP_DEVELOPER, true)
+        homeShowAppRating.value = prefs.getBoolean(KEY_HOME_SHOW_APP_RATING, true)
+        homeShowAppSize.value = prefs.getBoolean(KEY_HOME_SHOW_APP_SIZE, true)
     }
 
     fun setOpenAfterInstall(context: Context, value: Boolean) {
@@ -156,5 +195,71 @@ object AppPreferences {
         downloadSpeedLimitKb.value = speedKb
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit { putInt(KEY_DOWNLOAD_SPEED_LIMIT_KB, speedKb) }
+    }
+
+    fun setHomeShowHeaderSubtitle(context: Context, value: Boolean) {
+        homeShowHeaderSubtitle.value = value
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit { putBoolean(KEY_HOME_SHOW_HEADER_SUBTITLE, value) }
+    }
+
+    fun setHomeShowSearchBar(context: Context, value: Boolean) {
+        homeShowSearchBar.value = value
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit { putBoolean(KEY_HOME_SHOW_SEARCH_BAR, value) }
+    }
+
+    fun setHomeShowCategoryChips(context: Context, value: Boolean) {
+        homeShowCategoryChips.value = value
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit { putBoolean(KEY_HOME_SHOW_CATEGORY_CHIPS, value) }
+    }
+
+    fun setHomeShowFeaturedCarousel(context: Context, value: Boolean) {
+        homeShowFeaturedCarousel.value = value
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit { putBoolean(KEY_HOME_SHOW_FEATURED_CAROUSEL, value) }
+    }
+
+    fun setHomeShowRecommendedSection(context: Context, value: Boolean) {
+        homeShowRecommendedSection.value = value
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit { putBoolean(KEY_HOME_SHOW_RECOMMENDED_SECTION, value) }
+    }
+
+    fun setHomeShowNewAppsSection(context: Context, value: Boolean) {
+        homeShowNewAppsSection.value = value
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit { putBoolean(KEY_HOME_SHOW_NEW_APPS_SECTION, value) }
+    }
+
+    fun setHomeShowGamesSection(context: Context, value: Boolean) {
+        homeShowGamesSection.value = value
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit { putBoolean(KEY_HOME_SHOW_GAMES_SECTION, value) }
+    }
+
+    fun setHomeCatalogStyle(context: Context, value: String) {
+        homeCatalogStyle.value = value
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit { putString(KEY_HOME_CATALOG_STYLE, value) }
+    }
+
+    fun setHomeShowAppDeveloper(context: Context, value: Boolean) {
+        homeShowAppDeveloper.value = value
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit { putBoolean(KEY_HOME_SHOW_APP_DEVELOPER, value) }
+    }
+
+    fun setHomeShowAppRating(context: Context, value: Boolean) {
+        homeShowAppRating.value = value
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit { putBoolean(KEY_HOME_SHOW_APP_RATING, value) }
+    }
+
+    fun setHomeShowAppSize(context: Context, value: Boolean) {
+        homeShowAppSize.value = value
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit { putBoolean(KEY_HOME_SHOW_APP_SIZE, value) }
     }
 }

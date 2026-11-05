@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
@@ -32,6 +33,7 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import com.whitestore.data.installer.AppInstaller
 import com.whitestore.data.model.AppSummaryItem
+import com.whitestore.data.prefs.AppPreferences
 import com.whitestore.ui.components.AppCardItem
 import com.whitestore.ui.components.ExpressiveConnectedCategoryChip
 import com.whitestore.viewmodel.StoreViewModel
@@ -46,6 +48,19 @@ fun MainCatalogScreen(
     val uiState by viewModel.uiState.collectAsState()
     val packageTrigger by installer.packageUpdateTrigger.collectAsState()
 
+    // Home screen customisation preferences
+    val showHeaderSubtitle by AppPreferences.homeShowHeaderSubtitle
+    val showSearchBar by AppPreferences.homeShowSearchBar
+    val showCategoryChips by AppPreferences.homeShowCategoryChips
+    val showFeaturedCarousel by AppPreferences.homeShowFeaturedCarousel
+    val showRecommendedSection by AppPreferences.homeShowRecommendedSection
+    val showNewAppsSection by AppPreferences.homeShowNewAppsSection
+    val showGamesSection by AppPreferences.homeShowGamesSection
+    val catalogStyle by AppPreferences.homeCatalogStyle
+    val showAppDeveloper by AppPreferences.homeShowAppDeveloper
+    val showAppRating by AppPreferences.homeShowAppRating
+    val showAppSize by AppPreferences.homeShowAppSize
+
     val popularTags = listOf("Банки", "Мессенджеры", "Госуслуги", "Доставка", "Музыка", "Маркетплейсы", "Игры", "Карты")
 
     Scaffold(
@@ -58,11 +73,13 @@ fun MainCatalogScreen(
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold
                         )
-                        Text(
-                            text = "Чистый каталог приложений без рекламы",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        if (showHeaderSubtitle) {
+                            Text(
+                                text = "Чистый каталог приложений без рекламы",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 },
                 actions = {
@@ -88,48 +105,52 @@ fun MainCatalogScreen(
                 .fillMaxSize()
         ) {
             // Material 3 Expressive Search Bar
-            OutlinedTextField(
-                value = uiState.searchQuery,
-                onValueChange = { viewModel.onSearchQueryChanged(it) },
-                placeholder = { Text("Поиск приложений и игр...") },
-                leadingIcon = {
-                    Icon(Icons.Default.Search, contentDescription = "Поиск")
-                },
-                trailingIcon = {
-                    if (uiState.searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { viewModel.clearSearch() }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Очистить")
+            if (showSearchBar) {
+                OutlinedTextField(
+                    value = uiState.searchQuery,
+                    onValueChange = { viewModel.onSearchQueryChanged(it) },
+                    placeholder = { Text("Поиск приложений и игр...") },
+                    leadingIcon = {
+                        Icon(Icons.Default.Search, contentDescription = "Поиск")
+                    },
+                    trailingIcon = {
+                        if (uiState.searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { viewModel.clearSearch() }) {
+                                Icon(Icons.Default.Clear, contentDescription = "Очистить")
+                            }
                         }
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 6.dp),
-                shape = RoundedCornerShape(28.dp),
-                singleLine = true,
-                colors = TextFieldDefaults.colors(
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    shape = RoundedCornerShape(28.dp),
+                    singleLine = true,
+                    colors = TextFieldDefaults.colors(
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                    )
                 )
-            )
+            }
 
             // Category quick tags with connected morphing style
-            LazyRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(popularTags) { tag ->
-                    val isSelected = uiState.selectedCategory == tag
-                    ExpressiveConnectedCategoryChip(
-                        text = tag,
-                        isSelected = isSelected,
-                        onClick = { viewModel.selectCategory(if (isSelected) "" else tag) }
-                    )
+            if (showCategoryChips) {
+                LazyRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(popularTags) { tag ->
+                        val isSelected = uiState.selectedCategory == tag
+                        ExpressiveConnectedCategoryChip(
+                            text = tag,
+                            isSelected = isSelected,
+                            onClick = { viewModel.selectCategory(if (isSelected) "" else tag) }
+                        )
+                    }
                 }
             }
 
@@ -168,35 +189,118 @@ fun MainCatalogScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         // If standard catalog without search/filter, show Featured Carousel & Editorial Cards
-                        if (isDefaultCatalog && uiState.apps.size >= 4) {
+                        if (isDefaultCatalog && uiState.apps.isNotEmpty()) {
                             val topFeatured = uiState.apps.take(4)
-                            val remainingApps = uiState.apps.drop(4)
+                            val remainingApps = uiState.apps.drop(if (showFeaturedCarousel) 4 else 0)
 
                             // 1. "В центре внимания" Horizontal Carousel
-                            item {
-                                Column {
-                                    Text(
-                                        text = "В центре внимания",
-                                        style = MaterialTheme.typography.titleLarge,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(bottom = 10.dp)
-                                    )
+                            if (showFeaturedCarousel && topFeatured.isNotEmpty()) {
+                                item {
+                                    Column {
+                                        Text(
+                                            text = "В центре внимания",
+                                            style = MaterialTheme.typography.titleLarge,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(bottom = 10.dp)
+                                        )
 
-                                    LazyRow(
-                                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                                        contentPadding = PaddingValues(horizontal = 2.dp)
-                                    ) {
-                                        items(topFeatured) { app ->
-                                            FeaturedAppCard(
-                                                item = app,
-                                                onClick = { onNavigateToDetail(app.packageName) }
-                                            )
+                                        LazyRow(
+                                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                                            contentPadding = PaddingValues(horizontal = 2.dp)
+                                        ) {
+                                            items(topFeatured) { app ->
+                                                FeaturedAppCard(
+                                                    item = app,
+                                                    onClick = { onNavigateToDetail(app.packageName) }
+                                                )
+                                            }
                                         }
                                     }
                                 }
                             }
 
-                            // 2. Section Title
+                            // 2. Extra section: "Рекомендуемое"
+                            if (showRecommendedSection && uiState.recommendedApps.isNotEmpty()) {
+                                item {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Column {
+                                        Text(
+                                            text = "Рекомендуемое для вас",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(bottom = 10.dp)
+                                        )
+
+                                        LazyRow(
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                            contentPadding = PaddingValues(horizontal = 2.dp)
+                                        ) {
+                                            items(uiState.recommendedApps) { app ->
+                                                CompactAppCard(
+                                                    item = app,
+                                                    onClick = { onNavigateToDetail(app.packageName) }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // 3. Extra section: "Новинки"
+                            if (showNewAppsSection && uiState.newApps.isNotEmpty()) {
+                                item {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Column {
+                                        Text(
+                                            text = "Новинки каталога",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(bottom = 10.dp)
+                                        )
+
+                                        LazyRow(
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                            contentPadding = PaddingValues(horizontal = 2.dp)
+                                        ) {
+                                            items(uiState.newApps) { app ->
+                                                CompactAppCard(
+                                                    item = app,
+                                                    onClick = { onNavigateToDetail(app.packageName) }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // 4. Extra section: "Игры"
+                            if (showGamesSection && uiState.gamesApps.isNotEmpty()) {
+                                item {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Column {
+                                        Text(
+                                            text = "Популярные игры",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(bottom = 10.dp)
+                                        )
+
+                                        LazyRow(
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                            contentPadding = PaddingValues(horizontal = 2.dp)
+                                        ) {
+                                            items(uiState.gamesApps) { app ->
+                                                CompactAppCard(
+                                                    item = app,
+                                                    onClick = { onNavigateToDetail(app.packageName) }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // 5. Section Title
                             item {
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Row(
@@ -205,28 +309,57 @@ fun MainCatalogScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "Популярные приложения",
+                                        text = "Каталог приложений",
                                         style = MaterialTheme.typography.titleLarge,
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
-                                        text = "${remainingApps.size + topFeatured.size}",
+                                        text = "${remainingApps.size}",
                                         style = MaterialTheme.typography.labelLarge,
                                         color = MaterialTheme.colorScheme.primary
                                     )
                                 }
                             }
 
-                            // 3. Regular catalog items
-                            items(remainingApps, key = { it.packageName }) { app ->
-                                val isInstalled = remember(app.packageName, packageTrigger) {
-                                    installer.isAppInstalled(app.packageName)
+                            // 6. Regular catalog items (List or Grid)
+                            if (catalogStyle == "GRID") {
+                                val chunkedApps = remainingApps.chunked(2)
+                                items(chunkedApps) { rowPair ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        for (app in rowPair) {
+                                            val isInstalled = remember(app.packageName, packageTrigger) {
+                                                installer.isAppInstalled(app.packageName)
+                                            }
+                                            GridAppCardItem(
+                                                item = app,
+                                                isInstalled = isInstalled,
+                                                showRating = showAppRating,
+                                                onClick = { onNavigateToDetail(app.packageName) },
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                        }
+                                        if (rowPair.size == 1) {
+                                            Spacer(modifier = Modifier.weight(1f))
+                                        }
+                                    }
                                 }
-                                AppCardItem(
-                                    item = app,
-                                    isInstalled = isInstalled,
-                                    onClick = { onNavigateToDetail(app.packageName) }
-                                )
+                            } else {
+                                items(remainingApps, key = { it.packageName }) { app ->
+                                    val isInstalled = remember(app.packageName, packageTrigger) {
+                                        installer.isAppInstalled(app.packageName)
+                                    }
+                                    AppCardItem(
+                                        item = app,
+                                        isInstalled = isInstalled,
+                                        showSubtitle = showAppDeveloper,
+                                        showRating = showAppRating,
+                                        showExtraInfo = showAppSize,
+                                        onClick = { onNavigateToDetail(app.packageName) }
+                                    )
+                                }
                             }
                         } else {
                             // Search or filtered category view
@@ -244,15 +377,44 @@ fun MainCatalogScreen(
                                 )
                             }
 
-                            items(uiState.apps, key = { it.packageName }) { app ->
-                                val isInstalled = remember(app.packageName, packageTrigger) {
-                                    installer.isAppInstalled(app.packageName)
+                            if (catalogStyle == "GRID") {
+                                val chunkedApps = uiState.apps.chunked(2)
+                                items(chunkedApps) { rowPair ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        for (app in rowPair) {
+                                            val isInstalled = remember(app.packageName, packageTrigger) {
+                                                installer.isAppInstalled(app.packageName)
+                                            }
+                                            GridAppCardItem(
+                                                item = app,
+                                                isInstalled = isInstalled,
+                                                showRating = showAppRating,
+                                                onClick = { onNavigateToDetail(app.packageName) },
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                        }
+                                        if (rowPair.size == 1) {
+                                            Spacer(modifier = Modifier.weight(1f))
+                                        }
+                                    }
                                 }
-                                AppCardItem(
-                                    item = app,
-                                    isInstalled = isInstalled,
-                                    onClick = { onNavigateToDetail(app.packageName) }
-                                )
+                            } else {
+                                items(uiState.apps, key = { it.packageName }) { app ->
+                                    val isInstalled = remember(app.packageName, packageTrigger) {
+                                        installer.isAppInstalled(app.packageName)
+                                    }
+                                    AppCardItem(
+                                        item = app,
+                                        isInstalled = isInstalled,
+                                        showSubtitle = showAppDeveloper,
+                                        showRating = showAppRating,
+                                        showExtraInfo = showAppSize,
+                                        onClick = { onNavigateToDetail(app.packageName) }
+                                    )
+                                }
                             }
                         }
                     }
@@ -363,6 +525,170 @@ private fun FeaturedAppCard(
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Compact App Card for horizontal recommendation/category rows.
+ */
+@Composable
+private fun CompactAppCard(
+    item: AppSummaryItem,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .width(110.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(10.dp)
+                .fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            AsyncImage(
+                model = item.iconUrl,
+                contentDescription = item.appName,
+                modifier = Modifier
+                    .size(62.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentScale = ContentScale.Crop
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = item.appName,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            if (item.averageUserRating != null && item.averageUserRating > 0.0) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Star,
+                        contentDescription = null,
+                        tint = Color(0xFFFFB800),
+                        modifier = Modifier.size(11.dp)
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text(
+                        text = String.format("%.1f", item.averageUserRating),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 2-Column Grid item card for alternative main catalog layout.
+ */
+@Composable
+private fun GridAppCardItem(
+    item: AppSummaryItem,
+    isInstalled: Boolean,
+    showRating: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .clip(RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(12.dp)
+                .fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(contentAlignment = Alignment.BottomEnd) {
+                AsyncImage(
+                    model = item.iconUrl,
+                    contentDescription = item.appName,
+                    modifier = Modifier
+                        .size(60.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentScale = ContentScale.Crop
+                )
+
+                if (isInstalled) {
+                    Box(
+                        modifier = Modifier
+                            .offset(x = 3.dp, y = 3.dp)
+                            .size(18.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Установлено",
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(12.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = item.appName,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            if (!item.companyName.isNullOrBlank()) {
+                Text(
+                    text = item.companyName,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            if (showRating && item.averageUserRating != null && item.averageUserRating > 0.0) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Star,
+                        contentDescription = null,
+                        tint = Color(0xFFFFB800),
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text(
+                        text = String.format("%.1f", item.averageUserRating),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
             }
         }

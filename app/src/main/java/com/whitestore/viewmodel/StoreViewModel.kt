@@ -28,6 +28,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -38,6 +40,9 @@ data class StoreUiState(
     val isLoading: Boolean = false,
     val suggestions: List<SuggestItem> = emptyList(),
     val apps: List<AppSummaryItem> = emptyList(),
+    val recommendedApps: List<AppSummaryItem> = emptyList(),
+    val newApps: List<AppSummaryItem> = emptyList(),
+    val gamesApps: List<AppSummaryItem> = emptyList(),
     val error: String? = null
 )
 
@@ -144,11 +149,23 @@ class StoreViewModel(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             try {
-                val result = apiService.searchApps(query = "Банк", pageNumber = 0, pageSize = 25)
-                val apps = result.content
-                apps.forEach { appSummaryCache[it.packageName] = it }
+                val mainResultDeferred = async { apiService.searchApps(query = "Банк", pageNumber = 0, pageSize = 25) }
+                val recResultDeferred = async { apiService.searchApps(query = "Популярное", pageNumber = 0, pageSize = 12) }
+                val newResultDeferred = async { apiService.searchApps(query = "Новинки", pageNumber = 0, pageSize = 12) }
+                val gamesResultDeferred = async { apiService.searchApps(query = "Игры", pageNumber = 0, pageSize = 12) }
+
+                val mainApps = mainResultDeferred.await().content
+                val recApps = recResultDeferred.await().content
+                val newApps = newResultDeferred.await().content
+                val gamesApps = gamesResultDeferred.await().content
+
+                (mainApps + recApps + newApps + gamesApps).forEach { appSummaryCache[it.packageName] = it }
+
                 _uiState.value = _uiState.value.copy(
-                    apps = apps,
+                    apps = mainApps,
+                    recommendedApps = recApps,
+                    newApps = newApps,
+                    gamesApps = gamesApps,
                     isLoading = false
                 )
             } catch (e: Exception) {
@@ -331,58 +348,64 @@ class StoreViewModel(
                 withContext(Dispatchers.IO) {
                     val pm = context.packageManager
                     val ignored = AppPreferences.ignoredPackages.value
+                    // Query applications that are not system apps or are updated system apps
                     val installed = pm.getInstalledApplications(0).filter {
-                        (it.flags and ApplicationInfo.FLAG_SYSTEM) == 0 &&
+                        val isSystem = (it.flags and ApplicationInfo.FLAG_SYSTEM) != 0
+                        val isUpdatedSystem = (it.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
+                        (!isSystem || isUpdatedSystem) &&
                                 it.packageName != context.packageName &&
                                 !ignored.contains(it.packageName)
                     }
 
-                    // Query store in parallel (chunks of 4)
-                    val deferredList = installed.map { appInfo ->
+                    // Query store with controlled concurrency (semaphore) to prevent rate limiting / timeouts
+                    val semaphore = Semaphore(3)
+                    val deferredList: List<kotlinx.coroutines.Deferred<AppUpdateInfo?>> = installed.map { appInfo: ApplicationInfo ->
                         async {
-                            try {
-                                val pkgName = appInfo.packageName
-                                val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                    pm.getPackageInfo(pkgName, PackageManager.PackageInfoFlags.of(0))
-                                } else {
-                                    @Suppress("DEPRECATION")
-                                    pm.getPackageInfo(pkgName, 0)
-                                }
+                            semaphore.withPermit {
+                                try {
+                                    val pkgName = appInfo.packageName
+                                    val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                        pm.getPackageInfo(pkgName, PackageManager.PackageInfoFlags.of(0))
+                                    } else {
+                                        @Suppress("DEPRECATION")
+                                        pm.getPackageInfo(pkgName, 0)
+                                    }
 
-                                val localCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                                    packageInfo.longVersionCode
-                                } else {
-                                    @Suppress("DEPRECATION")
-                                    packageInfo.versionCode.toLong()
-                                }
-                                val localName = packageInfo.versionName ?: ""
+                                    val localCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                                        packageInfo.longVersionCode
+                                    } else {
+                                        @Suppress("DEPRECATION")
+                                        packageInfo.versionCode.toLong()
+                                    }
+                                    val localName = packageInfo.versionName ?: ""
 
-                                val storeDetail = apiService.getAppDetail(pkgName)
-                                if (storeDetail != null && storeDetail.versionCode != null) {
-                                    val remoteCode = storeDetail.versionCode
-                                    if (remoteCode > localCode) {
-                                        Log.d(TAG, "Update available for $pkgName: local=$localCode, remote=$remoteCode")
-                                        val localBitmap = try {
-                                            pm.getApplicationIcon(appInfo).toBitmap().asImageBitmap()
-                                        } catch (e: Exception) {
-                                            null
-                                        }
-                                        AppUpdateInfo(
-                                            appId = storeDetail.appId,
-                                            packageName = pkgName,
-                                            appName = storeDetail.appName.ifBlank { pm.getApplicationLabel(appInfo).toString() },
-                                            currentVersionCode = localCode,
-                                            currentVersionName = localName,
-                                            targetVersionCode = remoteCode,
-                                            targetVersionName = storeDetail.versionName ?: "",
-                                            fileSize = storeDetail.fileSize ?: 0L,
-                                            iconUrl = storeDetail.iconUrl,
-                                            localIconBitmap = localBitmap
-                                        )
+                                    val storeDetail = apiService.getAppDetail(pkgName)
+                                    if (storeDetail != null && storeDetail.versionCode != null) {
+                                        val remoteCode = storeDetail.versionCode
+                                        if (remoteCode > localCode) {
+                                            Log.d(TAG, "Update available for $pkgName: local=$localCode, remote=$remoteCode")
+                                            val localBitmap = try {
+                                                pm.getApplicationIcon(appInfo).toBitmap().asImageBitmap()
+                                            } catch (e: Exception) {
+                                                null
+                                            }
+                                            AppUpdateInfo(
+                                                appId = storeDetail.appId,
+                                                packageName = pkgName,
+                                                appName = storeDetail.appName.ifBlank { pm.getApplicationLabel(appInfo).toString() },
+                                                currentVersionCode = localCode,
+                                                currentVersionName = localName,
+                                                targetVersionCode = remoteCode,
+                                                targetVersionName = storeDetail.versionName ?: "",
+                                                fileSize = storeDetail.fileSize ?: 0L,
+                                                iconUrl = storeDetail.iconUrl,
+                                                localIconBitmap = localBitmap
+                                            )
+                                        } else null
                                     } else null
-                                } else null
-                            } catch (e: Exception) {
-                                null
+                                } catch (e: Exception) {
+                                    null
+                                }
                             }
                         }
                     }

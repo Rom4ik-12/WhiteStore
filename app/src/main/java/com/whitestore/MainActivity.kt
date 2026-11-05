@@ -143,9 +143,15 @@ fun WhiteStoreNavigation(app: WhiteStoreApp) {
             composable("settings") {
                 SettingsScreen(
                     onNavigateToDesignSettings = { navController.navigate("design_settings") },
+                    onNavigateToHomeScreenSettings = { navController.navigate("home_settings") },
                     onNavigateToStorageSettings = { navController.navigate("storage_settings") },
                     onNavigateToInstallSettings = { navController.navigate("install_settings") },
                     onNavigateToIgnoredApps = { navController.navigate("ignored_apps") },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable("home_settings") {
+                HomeScreenSettingsScreen(
                     onBack = { navController.popBackStack() }
                 )
             }

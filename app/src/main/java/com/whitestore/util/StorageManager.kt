@@ -111,8 +111,9 @@ object StorageManager {
     /**
      * Checks if cached APKs exceed the user-defined max cache size limit.
      * If exceeded, deletes oldest APKs until within limit.
+     * The [excludeFile] (e.g. the APK currently being downloaded or installed) is never pruned.
      */
-    suspend fun pruneApksIfNeeded(context: Context) = withContext(Dispatchers.IO) {
+    suspend fun pruneApksIfNeeded(context: Context, excludeFile: File? = null) = withContext(Dispatchers.IO) {
         val maxLimitMb = AppPreferences.maxCacheSizeMb.value
         if (maxLimitMb <= 0) return@withContext // 0 means Unlimited
 
@@ -121,10 +122,12 @@ object StorageManager {
         if (!apkDir.exists()) return@withContext
 
         val files = apkDir.listFiles()?.filter {
-            it.isFile && (it.name.endsWith(".apk", ignoreCase = true) || it.name.endsWith(".zip", ignoreCase = true))
+            it.isFile &&
+            (it.name.endsWith(".apk", ignoreCase = true) || it.name.endsWith(".zip", ignoreCase = true)) &&
+            (excludeFile == null || it.absolutePath != excludeFile.absolutePath)
         }?.sortedBy { it.lastModified() } ?: return@withContext
 
-        var currentTotal = files.sumOf { it.length() }
+        var currentTotal = apkDir.listFiles()?.filter { it.isFile }?.sumOf { it.length() } ?: 0L
         for (file in files) {
             if (currentTotal <= maxBytes) break
             val len = file.length()
