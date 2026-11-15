@@ -17,6 +17,24 @@ enum class UpdateNetworkMode(val title: String) {
     CELLULAR_ONLY("Только по мобильной сети")
 }
 
+enum class BadgeShape(val title: String) {
+    CIRCLE("Круг"),
+    COOKIE("Печенька"),
+    SQUIRCLE("Мягкий квадрат"),
+    SLANTED("Асимметричный"),
+    DIAMOND("Ромб"),
+    STAR("Звезда")
+}
+
+enum class BadgeColor(val title: String, val colorValue: Long) {
+    RED("Красный", 0xFFE53935),
+    PRIMARY("Синий", 0xFF0077FF),
+    PURPLE("Фиолетовый", 0xFF7C4DFF),
+    GREEN("Зеленый", 0xFF00C853),
+    ORANGE("Оранжевый", 0xFFFF6D00),
+    PINK("Розовый", 0xFFE91E63)
+}
+
 object AppPreferences {
     private const val PREFS_NAME = "whitestore_app_prefs"
     private const val KEY_OPEN_AFTER_INSTALL = "open_after_install"
@@ -27,6 +45,9 @@ object AppPreferences {
     private const val KEY_SHOW_INITIAL_VERSION = "show_initial_version"
     private const val KEY_USE_ICON_UPDATE_BUTTON = "use_icon_update_button"
     private const val KEY_SHOW_UPDATE_COUNT_BADGE = "show_update_count_badge"
+    private const val KEY_UPDATE_BADGE_SHAPE = "update_badge_shape"
+    private const val KEY_UPDATE_BADGE_COLOR = "update_badge_color"
+    private const val KEY_UPDATE_BADGE_MATCH_THEME = "update_badge_match_theme"
     private const val KEY_UPDATE_NETWORK_MODE = "update_network_mode"
     private const val KEY_MAX_CACHE_SIZE_MB = "max_cache_size_mb"
     private const val KEY_DELETE_APK_AFTER_INSTALL = "delete_apk_after_install"
@@ -54,6 +75,9 @@ object AppPreferences {
     val showInitialVersion = mutableStateOf(false)
     val useIconUpdateButton = mutableStateOf(true)
     val showUpdateCountBadge = mutableStateOf(true)
+    val updateBadgeShape = mutableStateOf(BadgeShape.COOKIE)
+    val updateBadgeColor = mutableStateOf(BadgeColor.RED)
+    val updateBadgeMatchTheme = mutableStateOf(false)
     val updateNetworkMode = mutableStateOf(UpdateNetworkMode.ANY)
     val maxCacheSizeMb = mutableStateOf(1024) // 1024 MB (1 GB) default. 0 = Unlimited.
     val downloadSpeedLimitKb = mutableStateOf(0) // 0 = No speed limit, otherwise KB/s (e.g. 512, 1024, 2048, 5120)
@@ -87,6 +111,19 @@ object AppPreferences {
         showInitialVersion.value = prefs.getBoolean(KEY_SHOW_INITIAL_VERSION, false)
         useIconUpdateButton.value = prefs.getBoolean(KEY_USE_ICON_UPDATE_BUTTON, true)
         showUpdateCountBadge.value = prefs.getBoolean(KEY_SHOW_UPDATE_COUNT_BADGE, true)
+        val savedBadgeShape = prefs.getString(KEY_UPDATE_BADGE_SHAPE, BadgeShape.COOKIE.name) ?: BadgeShape.COOKIE.name
+        updateBadgeShape.value = try {
+            BadgeShape.valueOf(savedBadgeShape)
+        } catch (e: Exception) {
+            BadgeShape.COOKIE
+        }
+        val savedBadgeColor = prefs.getString(KEY_UPDATE_BADGE_COLOR, BadgeColor.RED.name) ?: BadgeColor.RED.name
+        updateBadgeColor.value = try {
+            BadgeColor.valueOf(savedBadgeColor)
+        } catch (e: Exception) {
+            BadgeColor.RED
+        }
+        updateBadgeMatchTheme.value = prefs.getBoolean(KEY_UPDATE_BADGE_MATCH_THEME, false)
         val savedNetworkMode = prefs.getString(KEY_UPDATE_NETWORK_MODE, UpdateNetworkMode.ANY.name) ?: UpdateNetworkMode.ANY.name
         updateNetworkMode.value = try {
             UpdateNetworkMode.valueOf(savedNetworkMode)
@@ -177,6 +214,24 @@ object AppPreferences {
         showUpdateCountBadge.value = value
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit { putBoolean(KEY_SHOW_UPDATE_COUNT_BADGE, value) }
+    }
+
+    fun setUpdateBadgeShape(context: Context, shape: BadgeShape) {
+        updateBadgeShape.value = shape
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit { putString(KEY_UPDATE_BADGE_SHAPE, shape.name) }
+    }
+
+    fun setUpdateBadgeColor(context: Context, color: BadgeColor) {
+        updateBadgeColor.value = color
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit { putString(KEY_UPDATE_BADGE_COLOR, color.name) }
+    }
+
+    fun setUpdateBadgeMatchTheme(context: Context, value: Boolean) {
+        updateBadgeMatchTheme.value = value
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit { putBoolean(KEY_UPDATE_BADGE_MATCH_THEME, value) }
     }
 
     fun setUpdateNetworkMode(context: Context, mode: UpdateNetworkMode) {

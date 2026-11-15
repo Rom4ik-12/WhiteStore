@@ -5,12 +5,15 @@ import android.content.Intent
 import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Build
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -299,6 +302,17 @@ fun SettingsScreen(
                 }
             }
 
+            // Material 3 Wavy Divider separating app functionality from donation/support
+            item {
+                com.whitestore.ui.components.M3WavyDivider(
+                    modifier = Modifier.padding(vertical = 4.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                    waveHeight = 3.5.dp,
+                    waveLength = 14.dp,
+                    strokeWidth = 2.dp
+                )
+            }
+
             // 4. Поддержать проект донатом (CloudTips)
             item {
                 Card(
@@ -579,6 +593,9 @@ fun DesignSettingsScreen(
     var showInitialVersion by remember { mutableStateOf(AppPreferences.showInitialVersion.value) }
     var useIconUpdateButton by remember { mutableStateOf(AppPreferences.useIconUpdateButton.value) }
     var showUpdateCountBadge by remember { mutableStateOf(AppPreferences.showUpdateCountBadge.value) }
+    var currentBadgeShape by remember { mutableStateOf(AppPreferences.updateBadgeShape.value) }
+    var currentBadgeColor by remember { mutableStateOf(AppPreferences.updateBadgeColor.value) }
+    var matchThemeColor by remember { mutableStateOf(AppPreferences.updateBadgeMatchTheme.value) }
 
     Scaffold(
         topBar = {
@@ -844,6 +861,145 @@ fun DesignSettingsScreen(
                                     AppPreferences.setShowUpdateCountBadge(context, it)
                                 }
                             )
+                        }
+
+                        AnimatedVisibility(visible = showUpdateCountBadge) {
+                            Column(modifier = Modifier.padding(top = 12.dp)) {
+                                Text(
+                                    text = "Форма бейджа (Material 3)",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    com.whitestore.data.prefs.BadgeShape.entries.forEach { shapeOption ->
+                                        val isSelected = currentBadgeShape == shapeOption
+                                        val shapeObj = com.whitestore.ui.theme.M3Shapes.getBadgeShape(shapeOption)
+                                        val previewBgColor = if (isSelected) {
+                                            if (matchThemeColor) MaterialTheme.colorScheme.primary else Color(currentBadgeColor.colorValue)
+                                        } else {
+                                            MaterialTheme.colorScheme.outline
+                                        }
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .background(
+                                                    if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                                                     else MaterialTheme.colorScheme.surfaceVariant
+                                                )
+                                                .clickable {
+                                                    currentBadgeShape = shapeOption
+                                                    AppPreferences.setUpdateBadgeShape(context, shapeOption)
+                                                }
+                                                .padding(vertical = 12.dp, horizontal = 4.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(24.dp)
+                                                    .clip(shapeObj)
+                                                    .background(previewBgColor),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = "1",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = Color.White,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(14.dp))
+                                Text(
+                                    text = "Цвет бейджа",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    com.whitestore.data.prefs.BadgeColor.entries.forEach { colorOption ->
+                                        val isColorSelected = !matchThemeColor && currentBadgeColor == colorOption
+                                        val c = Color(colorOption.colorValue)
+                                        val itemShape = RoundedCornerShape(12.dp)
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(40.dp)
+                                                .clip(itemShape)
+                                                .background(c)
+                                                .then(
+                                                    if (isColorSelected) {
+                                                        Modifier.border(2.5.dp, MaterialTheme.colorScheme.onSurface, itemShape)
+                                                    } else {
+                                                        Modifier
+                                                    }
+                                                )
+                                                .clickable {
+                                                    matchThemeColor = false
+                                                    AppPreferences.setUpdateBadgeMatchTheme(context, false)
+                                                    currentBadgeColor = colorOption
+                                                    AppPreferences.setUpdateBadgeColor(context, colorOption)
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            if (isColorSelected) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Check,
+                                                    contentDescription = null,
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .clickable {
+                                            val newVal = !matchThemeColor
+                                            matchThemeColor = newVal
+                                            AppPreferences.setUpdateBadgeMatchTheme(context, newVal)
+                                        }
+                                        .padding(vertical = 4.dp, horizontal = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Подстроить под тему",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        Text(
+                                            text = "Использовать основной акцентный цвет темы приложения",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Switch(
+                                        checked = matchThemeColor,
+                                        onCheckedChange = {
+                                            matchThemeColor = it
+                                            AppPreferences.setUpdateBadgeMatchTheme(context, it)
+                                        }
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -1487,7 +1643,8 @@ fun StorageSettingsScreen(
                         Slider(
                             value = speedSliderValue,
                             onValueChange = { pos ->
-                                val targetKb = when (pos.toInt()) {
+                                val roundedIndex = Math.round(pos).toInt().coerceIn(0, 5)
+                                val targetKb = when (roundedIndex) {
                                     1 -> 512
                                     2 -> 1024
                                     3 -> 2048
@@ -1503,16 +1660,38 @@ fun StorageSettingsScreen(
                             modifier = Modifier.fillMaxWidth()
                         )
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                        val speedLabels = listOf("∞", "512 КБ", "1 МБ", "2 МБ", "5 МБ", "10 МБ/с")
+                        BoxWithConstraints(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 4.dp)
                         ) {
-                            Text("∞", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline, fontWeight = FontWeight.Bold)
-                            Text("512 КБ", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
-                            Text("1 МБ", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
-                            Text("2 МБ", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
-                            Text("5 МБ", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
-                            Text("10 МБ/с", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                            val totalWidth = maxWidth
+                            val thumbRadius = 10.dp
+                            val usableWidth = totalWidth - (thumbRadius * 2)
+                            val stepFraction = usableWidth / 5
+
+                            speedLabels.forEachIndexed { index, label ->
+                                val offsetCenterX = thumbRadius + (stepFraction * index)
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .wrapContentSize(Alignment.TopStart)
+                                        .offset(x = offsetCenterX)
+                                ) {
+                                    Box(
+                                        modifier = Modifier.offset(x = (-50).dp).width(100.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = label,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.outline,
+                                            fontWeight = if (index == 0) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -1563,7 +1742,8 @@ fun StorageSettingsScreen(
                         Slider(
                             value = sliderValue,
                             onValueChange = { pos ->
-                                val targetMb = when (pos.toInt()) {
+                                val roundedIndex = Math.round(pos).toInt().coerceIn(0, 5)
+                                val targetMb = when (roundedIndex) {
                                     0 -> 256
                                     1 -> 512
                                     2 -> 1024
@@ -1585,15 +1765,38 @@ fun StorageSettingsScreen(
                             modifier = Modifier.fillMaxWidth()
                         )
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                        val cacheLabels = listOf("256 МБ", "512 МБ", "1 ГБ", "2 ГБ", "4 ГБ", "∞")
+                        BoxWithConstraints(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 4.dp)
                         ) {
-                            Text("256 МБ", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
-                            Text("1 ГБ", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
-                            Text("2 ГБ", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
-                            Text("4 ГБ", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
-                            Text("∞", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline, fontWeight = FontWeight.Bold)
+                            val totalWidth = maxWidth
+                            val thumbRadius = 10.dp
+                            val usableWidth = totalWidth - (thumbRadius * 2)
+                            val stepFraction = usableWidth / 5
+
+                            cacheLabels.forEachIndexed { index, label ->
+                                val offsetCenterX = thumbRadius + (stepFraction * index)
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .wrapContentSize(Alignment.TopStart)
+                                        .offset(x = offsetCenterX)
+                                ) {
+                                    Box(
+                                        modifier = Modifier.offset(x = (-50).dp).width(100.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = label,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.outline,
+                                            fontWeight = if (index == 5) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }

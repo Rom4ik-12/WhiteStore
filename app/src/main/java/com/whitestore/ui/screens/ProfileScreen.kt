@@ -24,6 +24,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.zIndex
+import androidx.compose.foundation.border
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -80,6 +82,9 @@ fun ProfileScreen(
     val selfUpdateState by viewModel.selfUpdateState.collectAsState()
     val lastCheckTime by AppPreferences.lastUpdateCheckTime
     val showUpdateCountBadge by AppPreferences.showUpdateCountBadge
+    val updateBadgeShape by AppPreferences.updateBadgeShape
+    val updateBadgeColor by AppPreferences.updateBadgeColor
+    val updateBadgeMatchTheme by AppPreferences.updateBadgeMatchTheme
 
     // Count user-installed apps
     val installedAppsCount = remember(packageTrigger) {
@@ -214,40 +219,51 @@ fun ProfileScreen(
                                 .fillMaxSize(),
                             verticalArrangement = Arrangement.SpaceBetween
                         ) {
-                            // Row of app icons overlapping or badge
+                            // Row of app icons overlapping by 1/3 or badge
                             if (availableUpdates.isNotEmpty()) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    val previewUpdates = availableUpdates.take(3)
+                                    val previewUpdates = availableUpdates.take(4)
+                                    val itemShape = RoundedCornerShape(9.dp)
+                                    val borderColor = MaterialTheme.colorScheme.surfaceContainer
                                     Row(
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        horizontalArrangement = Arrangement.spacedBy((-11).dp)
                                     ) {
-                                        previewUpdates.forEach { update ->
-                                            if (!update.iconUrl.isNullOrBlank()) {
-                                                AsyncImage(
-                                                    model = update.iconUrl,
-                                                    contentDescription = update.appName,
-                                                    modifier = Modifier
-                                                        .size(32.dp)
-                                                        .clip(RoundedCornerShape(8.dp))
-                                                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                                                    contentScale = ContentScale.Crop
-                                                )
-                                            } else if (update.localIconBitmap != null) {
-                                                Image(
-                                                    bitmap = update.localIconBitmap,
-                                                    contentDescription = update.appName,
-                                                    modifier = Modifier
-                                                        .size(32.dp)
-                                                        .clip(RoundedCornerShape(8.dp))
-                                                )
+                                        previewUpdates.forEachIndexed { index, update ->
+                                            Box(
+                                                modifier = Modifier
+                                                    .zIndex((index + 1).toFloat())
+                                                    .size(34.dp)
+                                                    .clip(itemShape)
+                                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                                                    .border(2.dp, borderColor, itemShape)
+                                            ) {
+                                                if (!update.iconUrl.isNullOrBlank()) {
+                                                    AsyncImage(
+                                                        model = update.iconUrl,
+                                                        contentDescription = update.appName,
+                                                        modifier = Modifier
+                                                            .fillMaxSize()
+                                                            .clip(itemShape),
+                                                        contentScale = ContentScale.Crop
+                                                    )
+                                                } else if (update.localIconBitmap != null) {
+                                                    Image(
+                                                        bitmap = update.localIconBitmap,
+                                                        contentDescription = update.appName,
+                                                        modifier = Modifier
+                                                            .fillMaxSize()
+                                                            .clip(itemShape),
+                                                        contentScale = ContentScale.Crop
+                                                    )
+                                                }
                                             }
                                         }
                                     }
 
-                                    if (availableUpdates.size > 3) {
+                                    if (availableUpdates.size > 4) {
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Box(
                                             modifier = Modifier
@@ -257,7 +273,7 @@ fun ProfileScreen(
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Text(
-                                                text = "+${availableUpdates.size - 3}",
+                                                text = "+${availableUpdates.size - 4}",
                                                 style = MaterialTheme.typography.labelSmall,
                                                 fontWeight = FontWeight.Bold
                                             )
@@ -293,18 +309,30 @@ fun ProfileScreen(
                                     )
                                     if (showUpdateCountBadge && availableUpdates.isNotEmpty()) {
                                         Spacer(modifier = Modifier.width(6.dp))
+                                        val badgeShape = com.whitestore.ui.theme.M3Shapes.getBadgeShape(updateBadgeShape)
+                                        val badgeBackground = if (updateBadgeMatchTheme) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            Color(updateBadgeColor.colorValue)
+                                        }
+                                        val badgeTextColor = if (updateBadgeMatchTheme) {
+                                            MaterialTheme.colorScheme.onPrimary
+                                        } else {
+                                            Color.White
+                                        }
                                         Box(
                                             modifier = Modifier
-                                                .size(22.dp)
-                                                .clip(CircleShape)
-                                                .background(Color(0xFFE53935)),
+                                                .defaultMinSize(minWidth = 22.dp, minHeight = 22.dp)
+                                                .clip(badgeShape)
+                                                .background(badgeBackground)
+                                                .padding(horizontal = 4.dp, vertical = 2.dp),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Text(
                                                 text = "${availableUpdates.size}",
                                                 style = MaterialTheme.typography.labelSmall,
                                                 fontWeight = FontWeight.Bold,
-                                                color = Color.White
+                                                color = badgeTextColor
                                             )
                                         }
                                     }

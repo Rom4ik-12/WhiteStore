@@ -153,11 +153,13 @@ private fun ZoomableImage(
     var rawScale by remember { mutableFloatStateOf(1f) }
     var rawOffset by remember { mutableStateOf(Offset.Zero) }
 
-    // Material 3 Expressive motion spec for double-tap zoom
+    // Instant/snappy update during gesture zoom; spring animation only when double-tapping
+    var isPinchZooming by remember { mutableStateOf(false) }
+
     val animatedScale by animateFloatAsState(
         targetValue = rawScale,
-        animationSpec = tween(
-            durationMillis = 350,
+        animationSpec = if (isPinchZooming) snap() else tween(
+            durationMillis = 300,
             easing = M3EmphasizedEasing
         ),
         label = "zoom_scale"
@@ -165,8 +167,8 @@ private fun ZoomableImage(
 
     val animatedOffset by animateOffsetAsState(
         targetValue = rawOffset,
-        animationSpec = tween(
-            durationMillis = 350,
+        animationSpec = if (isPinchZooming) snap() else tween(
+            durationMillis = 300,
             easing = M3EmphasizedEasing
         ),
         label = "pan_offset"
@@ -174,6 +176,7 @@ private fun ZoomableImage(
 
     LaunchedEffect(isCurrentPage) {
         if (!isCurrentPage) {
+            isPinchZooming = false
             rawScale = 1f
             rawOffset = Offset.Zero
             onZoomChanged(false)
@@ -181,6 +184,7 @@ private fun ZoomableImage(
     }
 
     val transformState = rememberTransformableState { zoomChange, panChange, _ ->
+        isPinchZooming = true
         val newScale = (rawScale * zoomChange).coerceIn(1f, 5f)
         rawScale = newScale
         onZoomChanged(newScale > 1.05f)
@@ -204,6 +208,7 @@ private fun ZoomableImage(
                 detectTapGestures(
                     onTap = { onToggleControls() },
                     onDoubleTap = {
+                        isPinchZooming = false
                         if (rawScale > 1.05f) {
                             rawScale = 1f
                             rawOffset = Offset.Zero
