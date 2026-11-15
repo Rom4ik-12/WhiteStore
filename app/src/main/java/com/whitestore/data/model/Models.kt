@@ -56,6 +56,7 @@ data class AppDetail(
     val packageName: String = "",
     val appName: String = "",
     val companyName: String? = null,
+    val publicCompanyId: String? = null,
     val categories: List<String> = emptyList(),
     val shortDescription: String? = null,
     val fullDescription: String? = null,

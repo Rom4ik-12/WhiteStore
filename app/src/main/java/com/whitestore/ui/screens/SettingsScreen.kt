@@ -55,6 +55,7 @@ fun SettingsScreen(
     onNavigateToHomeScreenSettings: () -> Unit = {},
     onNavigateToStorageSettings: () -> Unit = {},
     onNavigateToInstallSettings: () -> Unit = {},
+    onNavigateToRecentSettings: () -> Unit = {},
     onNavigateToIgnoredApps: () -> Unit = {},
     onBack: () -> Unit
 ) {
@@ -192,7 +193,62 @@ fun SettingsScreen(
                 }
             }
 
-            // 3. Память и данные
+            // 3. Недавнее
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(22.dp))
+                        .clickable(onClick = onNavigateToRecentSettings),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.tertiaryContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.History,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(14.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Недавнее",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "Фильтрация приложений, показ только из RuStore",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.outline
+                        )
+                    }
+                }
+            }
+
+            // 4. Память и данные
             item {
                 Card(
                     modifier = Modifier
@@ -1018,6 +1074,7 @@ fun HomeScreenSettingsScreen(
 ) {
     val context = LocalContext.current
     var showSubtitle by remember { mutableStateOf(AppPreferences.homeShowHeaderSubtitle.value) }
+    var openMyAppsOnStart by remember { mutableStateOf(AppPreferences.openMyAppsOnStart.value) }
     var showSearchBar by remember { mutableStateOf(AppPreferences.homeShowSearchBar.value) }
     var showCategoryChips by remember { mutableStateOf(AppPreferences.homeShowCategoryChips.value) }
     var showFeaturedCarousel by remember { mutableStateOf(AppPreferences.homeShowFeaturedCarousel.value) }
@@ -1051,6 +1108,60 @@ fun HomeScreenSettingsScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Раздел: Запуск приложения
+            item {
+                Text(
+                    text = "Запуск приложения",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
+                )
+            }
+
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(22.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val newVal = !openMyAppsOnStart
+                                    openMyAppsOnStart = newVal
+                                    AppPreferences.setOpenMyAppsOnStart(context, newVal)
+                                },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Открывать «Моё» по умолчанию",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = "При запуске открывать сразу вкладку «Моё» вместо каталога",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = openMyAppsOnStart,
+                                onCheckedChange = {
+                                    openMyAppsOnStart = it
+                                    AppPreferences.setOpenMyAppsOnStart(context, it)
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
             // Раздел: Верхняя панель и поиск
             item {
                 Text(
@@ -2383,6 +2494,138 @@ fun InstallSettingsScreen(
                             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.outline
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Sub-screen: "Недавнее" - параметры отображения и фильтрации недавних приложений
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun RecentSettingsScreen(
+    onBack: () -> Unit
+) {
+    val context = LocalContext.current
+    var ruStoreOnly by remember { mutableStateOf(AppPreferences.recentFilterRuStoreOnly.value) }
+    var defaultFilter by remember { mutableStateOf(AppPreferences.recentDefaultFilter.value) }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Недавнее") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            )
+        }
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize(),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Источник приложений
+            item {
+                Text(
+                    text = "Источник приложений",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
+                )
+            }
+
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(22.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val newVal = !ruStoreOnly
+                                    ruStoreOnly = newVal
+                                    AppPreferences.setRecentFilterRuStoreOnly(context, newVal)
+                                },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Только приложения из RuStore",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = "Скрывать приложения, которых нет в каталоге RuStore",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = ruStoreOnly,
+                                onCheckedChange = {
+                                    ruStoreOnly = it
+                                    AppPreferences.setRecentFilterRuStoreOnly(context, it)
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Фильтр по умолчанию
+            item {
+                Text(
+                    text = "Фильтр по умолчанию",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
+                )
+            }
+
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(22.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Активная вкладка при входе в «Недавнее»",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        ConnectedButtonGroup(
+                            items = com.whitestore.data.prefs.RecentAppsFilter.entries,
+                            selectedItem = defaultFilter,
+                            onItemSelected = { filter ->
+                                defaultFilter = filter
+                                AppPreferences.setRecentDefaultFilter(context, filter)
+                            },
+                            labelProvider = { it.title },
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }

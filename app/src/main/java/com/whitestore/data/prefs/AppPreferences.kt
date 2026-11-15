@@ -35,6 +35,12 @@ enum class BadgeColor(val title: String, val colorValue: Long) {
     PINK("Розовый", 0xFFE91E63)
 }
 
+enum class RecentAppsFilter(val title: String) {
+    ALL("Все"),
+    UPDATED("Обновленные"),
+    INSTALLED("Установленные")
+}
+
 object AppPreferences {
     private const val PREFS_NAME = "whitestore_app_prefs"
     private const val KEY_OPEN_AFTER_INSTALL = "open_after_install"
@@ -52,6 +58,9 @@ object AppPreferences {
     private const val KEY_MAX_CACHE_SIZE_MB = "max_cache_size_mb"
     private const val KEY_DELETE_APK_AFTER_INSTALL = "delete_apk_after_install"
     private const val KEY_DOWNLOAD_SPEED_LIMIT_KB = "download_speed_limit_kb"
+    private const val KEY_OPEN_MY_APPS_ON_START = "open_my_apps_on_start"
+    private const val KEY_RECENT_FILTER_RUSTORE_ONLY = "recent_filter_rustore_only"
+    private const val KEY_RECENT_DEFAULT_FILTER = "recent_default_filter"
 
     // Home screen customisation keys
     private const val KEY_HOME_SHOW_HEADER_SUBTITLE = "home_show_header_subtitle"
@@ -81,6 +90,9 @@ object AppPreferences {
     val updateNetworkMode = mutableStateOf(UpdateNetworkMode.ANY)
     val maxCacheSizeMb = mutableStateOf(1024) // 1024 MB (1 GB) default. 0 = Unlimited.
     val downloadSpeedLimitKb = mutableStateOf(0) // 0 = No speed limit, otherwise KB/s (e.g. 512, 1024, 2048, 5120)
+    val openMyAppsOnStart = mutableStateOf(false)
+    val recentFilterRuStoreOnly = mutableStateOf(false)
+    val recentDefaultFilter = mutableStateOf(RecentAppsFilter.ALL)
 
     // Home screen customisation states
     val homeShowHeaderSubtitle = mutableStateOf(true)
@@ -132,6 +144,14 @@ object AppPreferences {
         }
         maxCacheSizeMb.value = prefs.getInt(KEY_MAX_CACHE_SIZE_MB, 1024)
         downloadSpeedLimitKb.value = prefs.getInt(KEY_DOWNLOAD_SPEED_LIMIT_KB, 0)
+        openMyAppsOnStart.value = prefs.getBoolean(KEY_OPEN_MY_APPS_ON_START, false)
+        recentFilterRuStoreOnly.value = prefs.getBoolean(KEY_RECENT_FILTER_RUSTORE_ONLY, false)
+        val savedRecentFilter = prefs.getString(KEY_RECENT_DEFAULT_FILTER, RecentAppsFilter.ALL.name) ?: RecentAppsFilter.ALL.name
+        recentDefaultFilter.value = try {
+            RecentAppsFilter.valueOf(savedRecentFilter)
+        } catch (e: Exception) {
+            RecentAppsFilter.ALL
+        }
 
         // Home customisation
         homeShowHeaderSubtitle.value = prefs.getBoolean(KEY_HOME_SHOW_HEADER_SUBTITLE, true)
@@ -151,6 +171,24 @@ object AppPreferences {
         openAfterInstall.value = value
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit { putBoolean(KEY_OPEN_AFTER_INSTALL, value) }
+    }
+
+    fun setOpenMyAppsOnStart(context: Context, value: Boolean) {
+        openMyAppsOnStart.value = value
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit { putBoolean(KEY_OPEN_MY_APPS_ON_START, value) }
+    }
+
+    fun setRecentFilterRuStoreOnly(context: Context, value: Boolean) {
+        recentFilterRuStoreOnly.value = value
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit { putBoolean(KEY_RECENT_FILTER_RUSTORE_ONLY, value) }
+    }
+
+    fun setRecentDefaultFilter(context: Context, filter: RecentAppsFilter) {
+        recentDefaultFilter.value = filter
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit { putString(KEY_RECENT_DEFAULT_FILTER, filter.name) }
     }
 
     fun setDeleteApkAfterInstall(context: Context, value: Boolean) {

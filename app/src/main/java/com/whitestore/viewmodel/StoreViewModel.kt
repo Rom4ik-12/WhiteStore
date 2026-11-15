@@ -66,11 +66,45 @@ class StoreViewModel(
     private val _isDetailLoading = MutableStateFlow(false)
     val isDetailLoading: StateFlow<Boolean> = _isDetailLoading.asStateFlow()
 
+    private val _developerApps = MutableStateFlow<List<AppSummaryItem>>(emptyList())
+    val developerApps: StateFlow<List<AppSummaryItem>> = _developerApps.asStateFlow()
+
+    private val _isDeveloperAppsLoading = MutableStateFlow(false)
+    val isDeveloperAppsLoading: StateFlow<Boolean> = _isDeveloperAppsLoading.asStateFlow()
+
+    private val _developerAppsError = MutableStateFlow<String?>(null)
+    val developerAppsError: StateFlow<String?> = _developerAppsError.asStateFlow()
+
+    private var currentDeveloperName: String = ""
+
     // Pre-cache item summaries: packageName -> AppSummaryItem
     val appSummaryCache = java.util.concurrent.ConcurrentHashMap<String, AppSummaryItem>()
 
     // In-memory cache for app details: packageName -> AppDetail
     private val appDetailCache = java.util.concurrent.ConcurrentHashMap<String, AppDetail>()
+
+    // Cache for checking whether package is known in RuStore: packageName -> Boolean
+    private val ruStorePackagesCache = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
+
+    suspend fun isPackageInRuStore(packageName: String): Boolean = withContext(Dispatchers.IO) {
+        val cached = ruStorePackagesCache[packageName]
+        if (cached != null) return@withContext cached
+        if (appDetailCache.containsKey(packageName) || appSummaryCache.containsKey(packageName)) {
+            ruStorePackagesCache[packageName] = true
+            return@withContext true
+        }
+        try {
+            val detail = apiService.getAppDetail(packageName)
+            val isInStore = detail != null
+            if (detail != null) {
+                appDetailCache[packageName] = detail
+            }
+            ruStorePackagesCache[packageName] = isInStore
+            isInStore
+        } catch (e: Exception) {
+            false
+        }
+    }
 
     // Updates state
     private val _availableUpdates = MutableStateFlow<List<AppUpdateInfo>>(emptyList())
@@ -291,6 +325,77 @@ class StoreViewModel(
                 }
             } finally {
                 _isDetailLoading.value = false
+            }
+        }
+    }
+
+    fun loadDeveloperApps(developerName: String, companyId: String? = null) {
+        val trimmed = developerName.trim()
+        if (trimmed.isEmpty()) return
+        val cacheKey = "$trimmed|$companyId"
+        if (currentDeveloperName == cacheKey && _developerApps.value.isNotEmpty()) {
+            return
+        }
+        currentDeveloperName = cacheKey
+        viewModelScope.launch {
+            _isDeveloperAppsLoading.value = true
+            _developerAppsError.value = null
+            try {
+                // Fetch candidate apps with search
+                val searchResult = apiService.searchApps(trimmed, pageNumber = 0, pageSize = 50)
+                searchResult.content.forEach { appSummaryCache[it.packageName] = it }
+
+                // RuStore's searchApps query returns apps matching keywords, not strictly by company.
+                // We verify each candidate's companyName / publicCompanyId in parallel to ensure 100% accuracy.
+                val semaphore = Semaphore(6)
+                val cleanTargetName = trimmed
+                    .replace("«", "")
+                    .replace("»", "")
+                    .replace("\"", "")
+                    .trim()
+
+                val verifiedApps = searchResult.content.map { appItem ->
+                    async {
+                        // Check if in cache first
+                        val cachedDetail = appDetailCache[appItem.packageName]
+                        if (cachedDetail != null) {
+                            val matchesId = !companyId.isNullOrBlank() && cachedDetail.publicCompanyId == companyId
+                            val matchesName = cachedDetail.companyName?.let { cName ->
+                                val cleanC = cName.replace("«", "").replace("»", "").replace("\"", "").trim()
+                                cleanC.equals(cleanTargetName, ignoreCase = true) ||
+                                (cleanTargetName.length >= 3 && cleanC.contains(cleanTargetName, ignoreCase = true)) ||
+                                (cleanC.length >= 3 && cleanTargetName.contains(cleanC, ignoreCase = true))
+                            } == true
+                            if (matchesId || matchesName) appItem else null
+                        } else {
+                            semaphore.withPermit {
+                                try {
+                                    val detail = apiService.getAppDetail(appItem.packageName)
+                                    if (detail != null) {
+                                        appDetailCache[appItem.packageName] = detail
+                                        val matchesId = !companyId.isNullOrBlank() && detail.publicCompanyId == companyId
+                                        val matchesName = detail.companyName?.let { cName ->
+                                            val cleanC = cName.replace("«", "").replace("»", "").replace("\"", "").trim()
+                                            cleanC.equals(cleanTargetName, ignoreCase = true) ||
+                                            (cleanTargetName.length >= 3 && cleanC.contains(cleanTargetName, ignoreCase = true)) ||
+                                            (cleanC.length >= 3 && cleanTargetName.contains(cleanC, ignoreCase = true))
+                                        } == true
+                                        if (matchesId || matchesName) appItem else null
+                                    } else null
+                                } catch (e: Exception) {
+                                    null
+                                }
+                            }
+                        }
+                    }
+                }.awaitAll().filterNotNull()
+
+                // If strict filtering matched items, use them; if empty (e.g. network timeout), fallback to search result
+                _developerApps.value = if (verifiedApps.isNotEmpty()) verifiedApps else searchResult.content
+            } catch (e: Exception) {
+                _developerAppsError.value = e.message
+            } finally {
+                _isDeveloperAppsLoading.value = false
             }
         }
     }

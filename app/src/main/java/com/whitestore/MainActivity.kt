@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -57,7 +58,7 @@ fun WhiteStoreNavigation(app: WhiteStoreApp) {
     val currentRoute = navBackStackEntry?.destination?.route
 
     // Show Bottom Navigation only on main tabs
-    val showBottomBar = currentRoute == "catalog" || currentRoute == "profile"
+    val showBottomBar = currentRoute == "catalog" || currentRoute == "recent" || currentRoute == "profile"
 
     Scaffold(
         bottomBar = {
@@ -74,6 +75,22 @@ fun WhiteStoreNavigation(app: WhiteStoreApp) {
                         onClick = {
                             if (currentRoute != "catalog") {
                                 navController.navigate("catalog") {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            }
+                        }
+                    )
+                    NavigationBarItem(
+                        icon = { Icon(Icons.Default.History, contentDescription = "Недавнее") },
+                        label = { Text("Недавнее") },
+                        selected = currentRoute == "recent",
+                        onClick = {
+                            if (currentRoute != "recent") {
+                                navController.navigate("recent") {
                                     popUpTo(navController.graph.findStartDestination().id) {
                                         saveState = true
                                     }
@@ -103,13 +120,25 @@ fun WhiteStoreNavigation(app: WhiteStoreApp) {
             }
         }
     ) { innerPadding ->
+        val startDest = remember {
+            if (AppPreferences.openMyAppsOnStart.value) "profile" else "catalog"
+        }
         NavHost(
             navController = navController,
-            startDestination = "catalog",
+            startDestination = startDest,
             modifier = Modifier.padding(innerPadding)
         ) {
             composable("catalog") {
                 MainCatalogScreen(
+                    viewModel = viewModel,
+                    installer = app.appInstaller,
+                    onNavigateToDetail = { pkg ->
+                        navController.navigate("detail/$pkg")
+                    }
+                )
+            }
+            composable("recent") {
+                RecentAppsScreen(
                     viewModel = viewModel,
                     installer = app.appInstaller,
                     onNavigateToDetail = { pkg ->
@@ -144,9 +173,15 @@ fun WhiteStoreNavigation(app: WhiteStoreApp) {
                 SettingsScreen(
                     onNavigateToDesignSettings = { navController.navigate("design_settings") },
                     onNavigateToHomeScreenSettings = { navController.navigate("home_settings") },
+                    onNavigateToRecentSettings = { navController.navigate("recent_settings") },
                     onNavigateToStorageSettings = { navController.navigate("storage_settings") },
                     onNavigateToInstallSettings = { navController.navigate("install_settings") },
                     onNavigateToIgnoredApps = { navController.navigate("ignored_apps") },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable("recent_settings") {
+                RecentSettingsScreen(
                     onBack = { navController.popBackStack() }
                 )
             }
@@ -192,7 +227,48 @@ fun WhiteStoreNavigation(app: WhiteStoreApp) {
                     packageName = packageName,
                     viewModel = viewModel,
                     installer = app.appInstaller,
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
+                    onNavigateToDeveloper = { devName, companyId ->
+                        val encodedName = java.net.URLEncoder.encode(devName, "UTF-8")
+                        val encodedId = companyId?.let { java.net.URLEncoder.encode(it, "UTF-8") } ?: ""
+                        navController.navigate("developer/$encodedName?id=$encodedId")
+                    }
+                )
+            }
+            composable(
+                route = "developer/{developerName}?id={companyId}",
+                arguments = listOf(
+                    navArgument("developerName") { type = NavType.StringType },
+                    navArgument("companyId") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    }
+                )
+            ) { backStackEntry ->
+                val encodedName = backStackEntry.arguments?.getString("developerName") ?: ""
+                val developerName = try {
+                    java.net.URLDecoder.decode(encodedName, "UTF-8")
+                } catch (e: Exception) {
+                    encodedName
+                }
+                val rawCompanyId = backStackEntry.arguments?.getString("companyId")?.takeIf { it.isNotBlank() }
+                val companyId = rawCompanyId?.let {
+                    try {
+                        java.net.URLDecoder.decode(it, "UTF-8")
+                    } catch (e: Exception) {
+                        it
+                    }
+                }
+                DeveloperAppsScreen(
+                    developerName = developerName,
+                    companyId = companyId,
+                    viewModel = viewModel,
+                    installer = app.appInstaller,
+                    onBack = { navController.popBackStack() },
+                    onNavigateToDetail = { pkg ->
+                        navController.navigate("detail/$pkg")
+                    }
                 )
             }
         }

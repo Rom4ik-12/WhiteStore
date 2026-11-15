@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -38,7 +39,8 @@ fun AppDetailScreen(
     packageName: String,
     viewModel: StoreViewModel,
     installer: AppInstaller,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onNavigateToDeveloper: (name: String, companyId: String?) -> Unit = { _, _ -> }
 ) {
     LaunchedEffect(packageName) {
         viewModel.loadAppDetail(packageName)
@@ -133,7 +135,10 @@ fun AppDetailScreen(
                                 Text(
                                     text = summary.companyName,
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.primary
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable {
+                                        onNavigateToDeveloper(summary.companyName, null)
+                                    }
                                 )
                             }
                             if (!summary.shortDescription.isNullOrBlank()) {
@@ -201,13 +206,30 @@ fun AppDetailScreen(
                                 style = MaterialTheme.typography.headlineSmall,
                                 fontWeight = FontWeight.Bold
                             )
-                            app.companyName?.let {
-                                Text(
-                                    text = it,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontWeight = FontWeight.Medium
-                                )
+                            app.companyName?.let { compName ->
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .clickable {
+                                            onNavigateToDeveloper(compName, app.publicCompanyId)
+                                        }
+                                        .padding(vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = compName,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
                             }
                             if (!app.versionName.isNullOrBlank()) {
                                 Text(
