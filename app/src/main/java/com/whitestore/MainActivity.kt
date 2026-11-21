@@ -143,6 +143,9 @@ fun WhiteStoreNavigation(app: WhiteStoreApp) {
                     installer = app.appInstaller,
                     onNavigateToDetail = { pkg ->
                         navController.navigate("detail/$pkg")
+                    },
+                    onNavigateToSettings = {
+                        navController.navigate("recent_settings")
                     }
                 )
             }

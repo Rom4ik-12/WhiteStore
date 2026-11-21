@@ -2,6 +2,7 @@ package com.whitestore.ui.screens
 
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -24,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import java.util.Locale
 import kotlinx.coroutines.launch
@@ -31,6 +33,7 @@ import coil3.compose.AsyncImage
 import com.whitestore.data.installer.AppInstaller
 import com.whitestore.data.installer.InstallState
 import com.whitestore.ui.components.FullscreenImageViewer
+import com.whitestore.util.StorageManager
 import com.whitestore.viewmodel.StoreViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -81,6 +84,8 @@ fun AppDetailScreen(
 
     val summary = remember(packageName) { viewModel.appSummaryCache[packageName] }
 
+    val coroutineScope = rememberCoroutineScope()
+    var showShareSheet by remember { mutableStateOf(false) }
     var selectedImageIndex by remember { mutableStateOf<Int?>(null) }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -91,6 +96,31 @@ fun AppDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
+                    }
+                },
+                actions = {
+                    IconButton(
+                        onClick = {
+                            val isInstalled = installer.isAppInstalled(packageName)
+                            if (isInstalled) {
+                                showShareSheet = true
+                            } else {
+                                val appName = detail?.appName ?: summary?.appName ?: packageName
+                                val shareText = "$appName в RuStore:\nhttps://www.rustore.ru/catalog/app/$packageName"
+                                val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_SUBJECT, appName)
+                                    putExtra(Intent.EXTRA_TEXT, shareText)
+                                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                }
+                                context.startActivity(Intent.createChooser(sendIntent, "Поделиться приложением"))
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = "Поделиться"
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -347,28 +377,15 @@ fun AppDetailScreen(
 
                     when (installState) {
                         is InstallState.Resolving -> {
-                            Button(
-                                onClick = {},
-                                enabled = false,
-                                modifier = Modifier.fillMaxWidth().height(54.dp),
-                                shape = RoundedCornerShape(20.dp)
-                            ) {
-                                LoadingIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    color = MaterialTheme.colorScheme.onPrimary
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text("Подготовка ссылки...", style = MaterialTheme.typography.titleMedium)
-                            }
-                        }
-                        is InstallState.Downloading -> {
-                            Column(
+                            Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Button(
                                     onClick = {},
-                                    modifier = Modifier.fillMaxWidth().height(54.dp),
+                                    enabled = false,
+                                    modifier = Modifier.weight(1f).height(54.dp),
                                     shape = RoundedCornerShape(20.dp)
                                 ) {
                                     LoadingIndicator(
@@ -376,11 +393,71 @@ fun AppDetailScreen(
                                         color = MaterialTheme.colorScheme.onPrimary
                                     )
                                     Spacer(modifier = Modifier.width(12.dp))
-                                    val pct = if (installState.progress > 0f) "${(installState.progress * 100).toInt()}%" else "Загрузка..."
-                                    val downloadedMb = installState.downloadedBytes / (1024.0 * 1024.0)
-                                    val totalMb = installState.totalBytes / (1024.0 * 1024.0)
-                                    val sizeText = if (totalMb > 0) String.format("(%.1f/%.1f)", downloadedMb, totalMb) else ""
-                                    Text("Скачивание $pct $sizeText", style = MaterialTheme.typography.titleMedium, maxLines = 1)
+                                    Text("Подготовка ссылки...", style = MaterialTheme.typography.titleMedium)
+                                }
+
+                                FilledTonalIconButton(
+                                    onClick = { viewModel.cancelDownload(packageName) },
+                                    modifier = Modifier.size(54.dp),
+                                    shape = RoundedCornerShape(20.dp),
+                                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                                        contentColor = MaterialTheme.colorScheme.onErrorContainer
+                                    )
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Отмена",
+                                        modifier = Modifier.size(26.dp)
+                                    )
+                                }
+                            }
+                        }
+                        is InstallState.Downloading -> {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Button(
+                                        onClick = { viewModel.pauseDownload(packageName) },
+                                        modifier = Modifier.weight(1f).height(54.dp),
+                                        shape = RoundedCornerShape(20.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Pause,
+                                            contentDescription = "Приостановить загрузку",
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        val progressText = StorageManager.formatDownloadProgress(
+                                            progress = installState.progress,
+                                            downloadedBytes = installState.downloadedBytes,
+                                            totalBytes = installState.totalBytes,
+                                            speedBytesPerSec = installState.speedBytesPerSec
+                                        )
+                                        Text("Пауза $progressText", style = MaterialTheme.typography.titleMedium, maxLines = 1)
+                                    }
+
+                                    FilledTonalIconButton(
+                                        onClick = { viewModel.cancelDownload(packageName) },
+                                        modifier = Modifier.size(54.dp),
+                                        shape = RoundedCornerShape(20.dp),
+                                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                                            contentColor = MaterialTheme.colorScheme.onErrorContainer
+                                        )
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Остановить загрузку",
+                                            modifier = Modifier.size(26.dp)
+                                        )
+                                    }
                                 }
 
                                 // Official M3 Expressive Linear Wavy Progress Indicator
@@ -395,6 +472,67 @@ fun AppDetailScreen(
                                     LinearWavyProgressIndicator(
                                         modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
                                         color = MaterialTheme.colorScheme.primary,
+                                        trackColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                                    )
+                                }
+                            }
+                        }
+                        is InstallState.Paused -> {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Button(
+                                        onClick = { viewModel.startDownload(app.appId, app.packageName, app.appName) },
+                                        modifier = Modifier.weight(1f).height(54.dp),
+                                        shape = RoundedCornerShape(20.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.primary
+                                        )
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.PlayArrow,
+                                            contentDescription = "Продолжить загрузку",
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        val progressText = StorageManager.formatDownloadProgress(
+                                            progress = installState.progress,
+                                            downloadedBytes = installState.downloadedBytes,
+                                            totalBytes = installState.totalBytes,
+                                            speedBytesPerSec = 0L,
+                                            showSpeed = false
+                                        )
+                                        Text("Продолжить $progressText", style = MaterialTheme.typography.titleMedium, maxLines = 1)
+                                    }
+
+                                    FilledTonalIconButton(
+                                        onClick = { viewModel.cancelDownload(packageName) },
+                                        modifier = Modifier.size(54.dp),
+                                        shape = RoundedCornerShape(20.dp),
+                                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                                            contentColor = MaterialTheme.colorScheme.onErrorContainer
+                                        )
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Отменить загрузку",
+                                            modifier = Modifier.size(26.dp)
+                                        )
+                                    }
+                                }
+
+                                if (installState.progress > 0f) {
+                                    LinearWavyProgressIndicator(
+                                        progress = { installState.progress },
+                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                                        color = MaterialTheme.colorScheme.secondary,
                                         trackColor = MaterialTheme.colorScheme.surfaceContainerHigh
                                     )
                                 }
@@ -821,6 +959,111 @@ fun AppDetailScreen(
                 isVisible = selectedImageIndex != null,
                 onDismiss = { selectedImageIndex = null }
             )
+        }
+
+        if (showShareSheet) {
+            val appName = detail?.appName ?: summary?.appName ?: packageName
+            val versionName = detail?.versionName
+            ModalBottomSheet(
+                onDismissRequest = { showShareSheet = false },
+                sheetState = rememberModalBottomSheetState(),
+                containerColor = MaterialTheme.colorScheme.surfaceContainer
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 32.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        AsyncImage(
+                            model = detail?.iconUrl ?: summary?.iconUrl,
+                            contentDescription = appName,
+                            modifier = Modifier
+                                .size(52.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
+                            contentScale = ContentScale.Crop
+                        )
+                        Spacer(modifier = Modifier.width(14.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = appName,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = "$packageName${if (!versionName.isNullOrBlank()) " • v$versionName" else ""}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.outline,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                    Button(
+                        onClick = {
+                            showShareSheet = false
+                            val shareText = "$appName в RuStore:\nhttps://www.rustore.ru/catalog/app/$packageName"
+                            val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_SUBJECT, appName)
+                                putExtra(Intent.EXTRA_TEXT, shareText)
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            }
+                            context.startActivity(Intent.createChooser(sendIntent, "Поделиться ссылкой"))
+                        },
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text("Поделиться ссылкой на RuStore")
+                    }
+
+                    FilledTonalButton(
+                        onClick = {
+                            showShareSheet = false
+                            StorageManager.shareInstalledAppApk(context, packageName)
+                        },
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Icon(Icons.Default.UploadFile, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text("Поделиться файлом APK")
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            showShareSheet = false
+                            coroutineScope.launch {
+                                val saved = StorageManager.backupAppApk(context, packageName, appName, versionName)
+                                if (saved != null) {
+                                    Toast.makeText(context, "APK сохранён в Загрузки:\n${saved.name}", Toast.LENGTH_LONG).show()
+                                } else {
+                                    Toast.makeText(context, "Не удалось сохранить APK", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Icon(Icons.Default.SaveAlt, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text("Сохранить APK в Загрузки")
+                    }
+                }
+            }
         }
     }
 }

@@ -22,10 +22,12 @@ object ThemePreferences {
     private const val KEY_THEME = "app_theme_mode"
     private const val KEY_DYNAMIC_COLOR = "dynamic_color_mode"
     private const val KEY_ACCENT_COLOR = "accent_color"
+    private const val KEY_AMOLED_MODE = "amoled_mode"
 
     val currentThemeMode = mutableStateOf(AppThemeMode.SYSTEM)
     val dynamicColorEnabled = mutableStateOf(true)
     val currentAccentColor = mutableStateOf(AccentColor.BLUE)
+    val amoledModeEnabled = mutableStateOf(false)
 
     fun init(context: Context) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -42,6 +44,7 @@ object ThemePreferences {
         } catch (e: Exception) {
             AccentColor.BLUE
         }
+        amoledModeEnabled.value = prefs.getBoolean(KEY_AMOLED_MODE, false)
     }
 
     fun setThemeMode(context: Context, mode: AppThemeMode) {
@@ -65,6 +68,14 @@ object ThemePreferences {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit {
             putString(KEY_ACCENT_COLOR, accent.name)
+        }
+    }
+
+    fun setAmoledModeEnabled(context: Context, enabled: Boolean) {
+        amoledModeEnabled.value = enabled
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit {
+            putBoolean(KEY_AMOLED_MODE, enabled)
         }
     }
 }

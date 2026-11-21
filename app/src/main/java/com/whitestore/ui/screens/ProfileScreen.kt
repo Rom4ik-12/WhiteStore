@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.drawable.toBitmap
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -48,14 +49,23 @@ import com.whitestore.ui.components.ConnectedButtonGroup
 import com.whitestore.ui.theme.AppThemeMode
 import com.whitestore.ui.theme.ThemePreferences
 import com.whitestore.util.AppIcon
+import com.whitestore.util.StorageManager
 import com.whitestore.util.TimeFormatUtils
 import com.whitestore.viewmodel.StoreViewModel
 
 data class InstalledAppInfo(
     val name: String,
     val packageName: String,
-    val versionName: String
+    val versionName: String,
+    val appSizeBytes: Long = 0L,
+    val installTime: Long = 0L
 )
+
+enum class MyAppsSortOrder(val title: String) {
+    NAME("По имени"),
+    SIZE("По размеру"),
+    DATE("По дате")
+}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -833,30 +843,119 @@ fun UpdatesScreen(
 
                             when (installState) {
                                 is InstallState.Downloading -> {
-                                    if (useIconUpdateButton) {
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        if (useIconUpdateButton) {
+                                            FilledTonalIconButton(
+                                                onClick = { viewModel.pauseDownload(update.packageName) },
+                                                modifier = Modifier.size(40.dp),
+                                                shape = RoundedCornerShape(12.dp),
+                                                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                                )
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Pause,
+                                                    contentDescription = "Приостановить загрузку",
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                        } else {
+                                            FilledTonalButton(
+                                                onClick = { viewModel.pauseDownload(update.packageName) },
+                                                shape = RoundedCornerShape(12.dp),
+                                                colors = ButtonDefaults.filledTonalButtonColors(
+                                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                                ),
+                                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                                            ) {
+                                                Icon(Icons.Default.Pause, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                val progressText = StorageManager.formatDownloadProgress(
+                                                    progress = installState.progress,
+                                                    downloadedBytes = installState.downloadedBytes,
+                                                    totalBytes = installState.totalBytes,
+                                                    speedBytesPerSec = installState.speedBytesPerSec
+                                                )
+                                                Text("Пауза $progressText", style = MaterialTheme.typography.labelMedium)
+                                            }
+                                        }
+
                                         FilledTonalIconButton(
-                                            onClick = {},
-                                            modifier = Modifier.size(40.dp),
-                                            shape = RoundedCornerShape(12.dp)
+                                            onClick = { viewModel.cancelDownload(update.packageName) },
+                                            modifier = Modifier.size(if (useIconUpdateButton) 40.dp else 36.dp),
+                                            shape = RoundedCornerShape(if (useIconUpdateButton) 12.dp else 10.dp),
+                                            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                                containerColor = MaterialTheme.colorScheme.errorContainer,
+                                                contentColor = MaterialTheme.colorScheme.onErrorContainer
+                                            )
                                         ) {
-                                            LoadingIndicator(
-                                                modifier = Modifier.size(20.dp),
-                                                color = MaterialTheme.colorScheme.primary
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Отменить загрузку",
+                                                modifier = Modifier.size(18.dp)
                                             )
                                         }
-                                    } else {
-                                        FilledTonalButton(
-                                            onClick = {},
-                                            shape = RoundedCornerShape(12.dp),
-                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                                        ) {
-                                            LoadingIndicator(
-                                                modifier = Modifier.size(18.dp),
-                                                color = MaterialTheme.colorScheme.primary
+                                    }
+                                }
+                                is InstallState.Paused -> {
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        if (useIconUpdateButton) {
+                                            FilledIconButton(
+                                                onClick = { viewModel.startDownload(update.appId, update.packageName, update.appName) },
+                                                modifier = Modifier.size(40.dp),
+                                                shape = RoundedCornerShape(12.dp),
+                                                colors = IconButtonDefaults.filledIconButtonColors(
+                                                    containerColor = MaterialTheme.colorScheme.primary,
+                                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                                )
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.PlayArrow,
+                                                    contentDescription = "Продолжить загрузку",
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                        } else {
+                                            Button(
+                                                onClick = { viewModel.startDownload(update.appId, update.packageName, update.appName) },
+                                                shape = RoundedCornerShape(12.dp),
+                                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                                            ) {
+                                                Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                val progressText = StorageManager.formatDownloadProgress(
+                                                    progress = installState.progress,
+                                                    downloadedBytes = installState.downloadedBytes,
+                                                    totalBytes = installState.totalBytes,
+                                                    speedBytesPerSec = 0L,
+                                                    showSpeed = false
+                                                )
+                                                Text("Далее $progressText", style = MaterialTheme.typography.labelMedium)
+                                            }
+                                        }
+
+                                        FilledTonalIconButton(
+                                            onClick = { viewModel.cancelDownload(update.packageName) },
+                                            modifier = Modifier.size(if (useIconUpdateButton) 40.dp else 36.dp),
+                                            shape = RoundedCornerShape(if (useIconUpdateButton) 12.dp else 10.dp),
+                                            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                                containerColor = MaterialTheme.colorScheme.errorContainer,
+                                                contentColor = MaterialTheme.colorScheme.onErrorContainer
                                             )
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                            val pct = if (installState.progress > 0f) "${(installState.progress * 100).toInt()}%" else "..."
-                                            Text(pct, style = MaterialTheme.typography.labelMedium)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Отменить загрузку",
+                                                modifier = Modifier.size(18.dp)
+                                            )
                                         }
                                     }
                                 }
@@ -964,14 +1063,19 @@ fun UpdatesScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MyAppsScreen(
     installer: AppInstaller,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     var appsList by remember { mutableStateOf<List<InstalledAppInfo>>(emptyList()) }
+    var searchQuery by remember { mutableStateOf("") }
+    var sortOrder by remember { mutableStateOf(MyAppsSortOrder.NAME) }
+    var isLoading by remember { mutableStateOf(true) }
+    var selectedAppForBackup by remember { mutableStateOf<InstalledAppInfo?>(null) }
 
     LaunchedEffect(Unit) {
         val result = withContext(Dispatchers.IO) {
@@ -990,20 +1094,45 @@ fun MyAppsScreen(
                     } catch (e: Exception) {
                         null
                     }
+                    val size = try {
+                        java.io.File(appInfo.sourceDir).length()
+                    } catch (e: Exception) {
+                        0L
+                    }
+                    val time = maxOf(pInfo?.firstInstallTime ?: 0L, pInfo?.lastUpdateTime ?: 0L)
                     InstalledAppInfo(
                         name = label,
                         packageName = appInfo.packageName,
-                        versionName = pInfo?.versionName ?: ""
+                        versionName = pInfo?.versionName ?: "",
+                        appSizeBytes = size,
+                        installTime = time
                     )
-                }.sortedBy { it.name.lowercase() }
+                }
         }
         appsList = result
+        isLoading = false
+    }
+
+    val displayList = remember(appsList, searchQuery, sortOrder) {
+        val filtered = if (searchQuery.isBlank()) {
+            appsList
+        } else {
+            appsList.filter {
+                it.name.contains(searchQuery, ignoreCase = true) ||
+                it.packageName.contains(searchQuery, ignoreCase = true)
+            }
+        }
+        when (sortOrder) {
+            MyAppsSortOrder.NAME -> filtered.sortedBy { it.name.lowercase() }
+            MyAppsSortOrder.SIZE -> filtered.sortedByDescending { it.appSizeBytes }
+            MyAppsSortOrder.DATE -> filtered.sortedByDescending { it.installTime }
+        }
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Мои приложения (${appsList.size})") },
+                title = { Text("Мои приложения (${displayList.size})") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
@@ -1015,64 +1144,292 @@ fun MyAppsScreen(
             )
         }
     ) { innerPadding ->
-        LazyColumn(
+        Column(
             modifier = Modifier
                 .padding(innerPadding)
-                .fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .fillMaxSize()
         ) {
-            items(appsList, key = { it.packageName }) { app ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(18.dp))
-                        .clickable { installer.openApp(app.packageName) },
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .padding(14.dp)
-                            .fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        AppIcon(
-                            packageName = app.packageName,
-                            size = 48.dp,
-                            shapeRadius = 14.dp
-                        )
-
-                        Spacer(modifier = Modifier.width(14.dp))
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = app.name,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            if (app.versionName.isNotBlank()) {
-                                Text(
-                                    text = "Версия ${app.versionName}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.outline
-                                )
+            // Search and sort bar
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Поиск среди установленных...") },
+                    leadingIcon = {
+                        Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Default.Close, contentDescription = "Очистить")
                             }
                         }
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                    )
+                )
 
-                        FilledTonalIconButton(
-                            onClick = { installer.openApp(app.packageName) },
-                            modifier = Modifier.size(40.dp),
-                            shape = RoundedCornerShape(12.dp)
+                ConnectedButtonGroup(
+                    items = MyAppsSortOrder.entries,
+                    selectedItem = sortOrder,
+                    onItemSelected = { sortOrder = it },
+                    labelProvider = { it.title },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            if (isLoading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    ContainedLoadingIndicator()
+                }
+            } else if (displayList.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = if (searchQuery.isNotEmpty()) "Ничего не найдено" else "Нет установленных приложений",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(displayList, key = { it.packageName }) { app ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(18.dp))
+                                .clickable { installer.openApp(app.packageName) },
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                            )
                         ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                                contentDescription = "Открыть",
-                                modifier = Modifier.size(20.dp)
+                            Row(
+                                modifier = Modifier
+                                    .padding(14.dp)
+                                    .fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                AppIcon(
+                                    packageName = app.packageName,
+                                    size = 48.dp,
+                                    shapeRadius = 14.dp
+                                )
+
+                                Spacer(modifier = Modifier.width(14.dp))
+
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = app.name,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        if (app.versionName.isNotBlank()) {
+                                            Text(
+                                                text = "v${app.versionName}",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.outline,
+                                                maxLines = 1,
+                                                softWrap = false,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                        if (app.appSizeBytes > 0L) {
+                                            val formattedSize = remember(app.appSizeBytes) {
+                                                android.text.format.Formatter.formatFileSize(context, app.appSizeBytes)
+                                            }
+                                            if (app.versionName.isNotBlank()) {
+                                                Text(
+                                                    text = " • ",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.outline,
+                                                    maxLines = 1,
+                                                    softWrap = false
+                                                )
+                                            }
+                                            Text(
+                                                text = formattedSize,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                fontWeight = FontWeight.Medium,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                maxLines = 1,
+                                                softWrap = false
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    FilledTonalIconButton(
+                                        onClick = { selectedAppForBackup = app },
+                                        modifier = Modifier.size(38.dp),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+                                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.SaveAlt,
+                                            contentDescription = "Бэкап / Поделиться APK",
+                                            modifier = Modifier.size(19.dp)
+                                        )
+                                    }
+
+                                    FilledTonalIconButton(
+                                        onClick = { installer.openAppDetailsSettings(app.packageName) },
+                                        modifier = Modifier.size(38.dp),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Info,
+                                            contentDescription = "О приложении",
+                                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                            modifier = Modifier.size(19.dp)
+                                        )
+                                    }
+
+                                    FilledTonalIconButton(
+                                        onClick = { installer.openApp(app.packageName) },
+                                        modifier = Modifier.size(38.dp),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                            contentDescription = "Открыть",
+                                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                            modifier = Modifier.size(19.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (selectedAppForBackup != null) {
+        val app = selectedAppForBackup!!
+        ModalBottomSheet(
+            onDismissRequest = { selectedAppForBackup = null },
+            sheetState = rememberModalBottomSheetState(),
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    AppIcon(
+                        packageName = app.packageName,
+                        size = 52.dp,
+                        shapeRadius = 14.dp
+                    )
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = app.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = "${app.packageName} • v${app.versionName}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.outline,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        if (app.appSizeBytes > 0L) {
+                            val formattedSize = remember(app.appSizeBytes) {
+                                android.text.format.Formatter.formatFileSize(context, app.appSizeBytes)
+                            }
+                            Text(
+                                text = "Размер APK: $formattedSize",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Medium
                             )
                         }
                     }
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                Button(
+                    onClick = {
+                        val targetApp = app
+                        selectedAppForBackup = null
+                        coroutineScope.launch {
+                            val saved = StorageManager.backupAppApk(context, targetApp.packageName, targetApp.name, targetApp.versionName)
+                            if (saved != null) {
+                                Toast.makeText(context, "APK сохранён в Загрузки:\n${saved.name}", Toast.LENGTH_LONG).show()
+                            } else {
+                                Toast.makeText(context, "Не удалось извлечь APK", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(Icons.Default.SaveAlt, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text("Сохранить APK в Загрузки")
+                }
+
+                FilledTonalButton(
+                    onClick = {
+                        val targetApp = app
+                        selectedAppForBackup = null
+                        StorageManager.shareInstalledAppApk(context, targetApp.packageName)
+                    },
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text("Поделиться файлом APK")
+                }
+
+                OutlinedButton(
+                    onClick = {
+                        val targetApp = app
+                        selectedAppForBackup = null
+                        installer.openAppDetailsSettings(targetApp.packageName)
+                    },
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text("Настройки приложения")
                 }
             }
         }

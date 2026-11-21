@@ -33,7 +33,13 @@ import java.util.zip.ZipInputStream
 sealed class InstallState {
     object Idle : InstallState()
     object Resolving : InstallState() // Fetching direct download URL
-    data class Downloading(val progress: Float, val downloadedBytes: Long, val totalBytes: Long) : InstallState()
+    data class Downloading(
+        val progress: Float,
+        val downloadedBytes: Long,
+        val totalBytes: Long,
+        val speedBytesPerSec: Long = 0L
+    ) : InstallState()
+    data class Paused(val progress: Float, val downloadedBytes: Long, val totalBytes: Long) : InstallState()
     object Extracting : InstallState() // Unpacking APK from ZIP
     object ReadyToInstall : InstallState()
     data class Error(val message: String) : InstallState()
@@ -46,6 +52,9 @@ class AppInstaller(
     private val TAG = "AppInstaller"
 
     private val apkFileMap = java.util.concurrent.ConcurrentHashMap<String, File>()
+    private val activeCalls = java.util.concurrent.ConcurrentHashMap<String, okhttp3.Call>()
+    private val cancelledPackages = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    private val pausedPackages = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
     private val _installState = MutableStateFlow<Map<String, InstallState>>(emptyMap())
     val installState: StateFlow<Map<String, InstallState>> = _installState.asStateFlow()
@@ -142,6 +151,51 @@ class AppInstaller(
         updateState(packageName, InstallState.Resolving)
     }
 
+    fun pauseDownload(packageName: String) {
+        Log.d(TAG, "Pausing download for $packageName")
+        pausedPackages.add(packageName)
+        val call = activeCalls.remove(packageName)
+        call?.cancel()
+
+        val currentState = _installState.value[packageName]
+        if (currentState is InstallState.Downloading) {
+            updateState(packageName, InstallState.Paused(currentState.progress, currentState.downloadedBytes, currentState.totalBytes))
+        }
+    }
+
+    fun cancelDownload(packageName: String) {
+        Log.d(TAG, "Cancelling download for $packageName")
+        pausedPackages.remove(packageName)
+        cancelledPackages.add(packageName)
+        val call = activeCalls.remove(packageName)
+        call?.cancel()
+
+        apkFileMap.remove(packageName)
+        updateState(packageName, InstallState.Idle)
+
+        try {
+            val apkDir = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "apks")
+            val apkFile = File(apkDir, "$packageName.apk")
+            val zipFile = File(apkDir, "$packageName.zip")
+            if (apkFile.exists()) apkFile.delete()
+            if (zipFile.exists()) zipFile.delete()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to clean up cancelled files", e)
+        }
+    }
+
+    fun openAppDetailsSettings(packageName: String) {
+        try {
+            val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.fromParts("package", packageName, null)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            showToast("Не удалось открыть настройки приложения")
+        }
+    }
+
     suspend fun downloadAndInstall(
         packageName: String,
         downloadUrl: String,
@@ -149,14 +203,62 @@ class AppInstaller(
         saveOnly: Boolean = false,
         versionName: String? = null
     ) = withContext(Dispatchers.IO) {
-        updateState(packageName, InstallState.Downloading(0f, 0, 0))
+        val apkDir = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "apks")
+        if (!apkDir.exists()) apkDir.mkdirs()
+
+        val isZip = downloadUrl.contains(".zip", ignoreCase = true)
+        val downloadedFile = File(apkDir, if (isZip) "$packageName.zip" else "$packageName.apk")
+        val currentFile = downloadedFile
+
+        val existingBytes = if (downloadedFile.exists()) downloadedFile.length() else 0L
+
+        updateState(packageName, InstallState.Downloading(0f, existingBytes, 0L))
+
+        var currentCall: okhttp3.Call? = null
 
         try {
-            Log.d(TAG, "Starting download for $appName ($packageName): $downloadUrl (saveOnly=$saveOnly)")
-            val request = Request.Builder().url(downloadUrl).build()
-            val response = client.newCall(request).execute()
+            Log.d(TAG, "Starting download for $appName ($packageName): $downloadUrl (existingBytes=$existingBytes, saveOnly=$saveOnly)")
 
-            if (!response.isSuccessful || response.body == null) {
+            var request = if (existingBytes > 0L) {
+                Request.Builder()
+                    .url(downloadUrl)
+                    .addHeader("Range", "bytes=$existingBytes-")
+                    .build()
+            } else {
+                Request.Builder().url(downloadUrl).build()
+            }
+
+            var call = client.newCall(request)
+            currentCall = call
+            activeCalls[packageName] = call
+
+            var response = call.execute()
+
+            // If 416 Range Not Satisfiable, clear partial file and retry full download
+            if (response.code == 416 && existingBytes > 0L) {
+                response.close()
+                if (downloadedFile.exists()) downloadedFile.delete()
+                request = Request.Builder().url(downloadUrl).build()
+                call = client.newCall(request)
+                currentCall = call
+                activeCalls[packageName] = call
+                response = call.execute()
+            }
+
+            val isPartial = response.code == 206
+            val body = response.body
+            if (!response.isSuccessful || body == null) {
+                if (call.isCanceled()) {
+                    if (pausedPackages.remove(packageName)) {
+                        val curState = _installState.value[packageName]
+                        if (curState is InstallState.Downloading) {
+                            updateState(packageName, InstallState.Paused(curState.progress, curState.downloadedBytes, curState.totalBytes))
+                        }
+                    } else {
+                        updateState(packageName, InstallState.Idle)
+                    }
+                    return@withContext
+                }
                 val errorMsg = "Ошибка скачивания: HTTP ${response.code}"
                 Log.e(TAG, errorMsg)
                 updateState(packageName, InstallState.Error(errorMsg))
@@ -164,21 +266,24 @@ class AppInstaller(
                 return@withContext
             }
 
-            val body = response.body!!
-            val contentLength = body.contentLength()
+            val serverLength = body.contentLength()
+            val totalBytes = if (isPartial) {
+                if (serverLength > 0) existingBytes + serverLength else 0L
+            } else {
+                serverLength
+            }
 
-            val apkDir = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "apks")
-            if (!apkDir.exists()) apkDir.mkdirs()
+            var totalRead: Long = if (isPartial) existingBytes else 0L
 
-            val isZip = downloadUrl.contains(".zip", ignoreCase = true)
-            val downloadedFile = File(apkDir, if (isZip) "$packageName.zip" else "$packageName.apk")
-            if (downloadedFile.exists()) downloadedFile.delete()
+            val outputStream = if (isPartial) {
+                FileOutputStream(downloadedFile, true)
+            } else {
+                if (downloadedFile.exists()) downloadedFile.delete()
+                FileOutputStream(downloadedFile, false)
+            }
 
             val inputStream: InputStream = body.byteStream()
-            val outputStream = FileOutputStream(downloadedFile)
-
             val buffer = ByteArray(8192)
-            var totalRead: Long = 0
             var bytesRead: Int
             var lastUpdateMs = 0L
 
@@ -186,45 +291,84 @@ class AppInstaller(
             var windowStartMs = System.currentTimeMillis()
             var windowBytesRead = 0L
 
-            while (inputStream.read(buffer).also { bytesRead = it } != -1) {
-                outputStream.write(buffer, 0, bytesRead)
-                totalRead += bytesRead
-                windowBytesRead += bytesRead
+            var speedBytesPerSec = 0L
+            var speedWindowStartMs = System.currentTimeMillis()
+            var speedWindowBytes = 0L
 
-                // Rate limiting throttler
-                if (speedLimitBytesPerSec > 0) {
-                    val nowMs = System.currentTimeMillis()
-                    val elapsedMs = nowMs - windowStartMs
-                    val expectedMs = (windowBytesRead * 1000L) / speedLimitBytesPerSec
-                    if (expectedMs > elapsedMs) {
-                        val sleepMs = expectedMs - elapsedMs
-                        if (sleepMs > 0) {
-                            try {
-                                Thread.sleep(sleepMs.coerceAtMost(500L))
-                            } catch (e: InterruptedException) {
-                                // proceed
+            val initialProgress = if (totalBytes > 0) (totalRead.toFloat() / totalBytes) else 0f
+            updateState(packageName, InstallState.Downloading(initialProgress, totalRead, totalBytes, 0L))
+
+            try {
+                while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                    if (pausedPackages.contains(packageName) || cancelledPackages.contains(packageName) || call.isCanceled()) {
+                        break
+                    }
+                    outputStream.write(buffer, 0, bytesRead)
+                    totalRead += bytesRead
+                    windowBytesRead += bytesRead
+                    speedWindowBytes += bytesRead
+
+                    val now = System.currentTimeMillis()
+
+                    // Compute live download speed every 500ms
+                    val speedElapsed = now - speedWindowStartMs
+                    if (speedElapsed >= 500) {
+                        val currentSpeed = (speedWindowBytes * 1000L) / speedElapsed
+                        speedBytesPerSec = if (speedBytesPerSec == 0L) currentSpeed else (speedBytesPerSec * 7 + currentSpeed * 3) / 10
+                        speedWindowStartMs = now
+                        speedWindowBytes = 0L
+                    }
+
+                    // Rate limiting throttler
+                    if (speedLimitBytesPerSec > 0) {
+                        val elapsedMs = now - windowStartMs
+                        val expectedMs = (windowBytesRead * 1000L) / speedLimitBytesPerSec
+                        if (expectedMs > elapsedMs) {
+                            val sleepMs = expectedMs - elapsedMs
+                            if (sleepMs > 0) {
+                                try {
+                                    Thread.sleep(sleepMs.coerceAtMost(500L))
+                                } catch (e: InterruptedException) {
+                                    // proceed
+                                }
                             }
                         }
+                        if (elapsedMs >= 1000L) {
+                            windowStartMs = System.currentTimeMillis()
+                            windowBytesRead = 0L
+                            // Dynamic recheck in case preference changed mid-download
+                            speedLimitBytesPerSec = AppPreferences.downloadSpeedLimitKb.value * 1024L
+                        }
                     }
-                    if (elapsedMs >= 1000L) {
-                        windowStartMs = System.currentTimeMillis()
-                        windowBytesRead = 0L
-                        // Dynamic recheck in case preference changed mid-download
-                        speedLimitBytesPerSec = AppPreferences.downloadSpeedLimitKb.value * 1024L
-                    }
-                }
 
-                val now = System.currentTimeMillis()
-                if (now - lastUpdateMs > 100 || totalRead == contentLength) {
-                    val progress = if (contentLength > 0) (totalRead.toFloat() / contentLength) else 0f
-                    updateState(packageName, InstallState.Downloading(progress, totalRead, contentLength))
-                    lastUpdateMs = now
+                    if (now - lastUpdateMs > 100 || (totalBytes > 0 && totalRead == totalBytes)) {
+                        val progress = if (totalBytes > 0) (totalRead.toFloat() / totalBytes) else 0f
+                        updateState(packageName, InstallState.Downloading(progress, totalRead, totalBytes, speedBytesPerSec))
+                        lastUpdateMs = now
+                    }
                 }
+            } finally {
+                try { outputStream.flush() } catch (ignored: Exception) {}
+                try { outputStream.close() } catch (ignored: Exception) {}
+                try { inputStream.close() } catch (ignored: Exception) {}
+                try { response.close() } catch (ignored: Exception) {}
             }
 
-            outputStream.flush()
-            outputStream.close()
-            inputStream.close()
+            if (pausedPackages.remove(packageName)) {
+                Log.d(TAG, "Download paused for $packageName, saved ${downloadedFile.length()} bytes")
+                val progress = if (totalBytes > 0) (totalRead.toFloat() / totalBytes) else 0f
+                updateState(packageName, InstallState.Paused(progress, totalRead, totalBytes))
+                return@withContext
+            }
+
+            if (cancelledPackages.remove(packageName) || call.isCanceled()) {
+                Log.d(TAG, "Download cancelled before extraction/install for $packageName")
+                try {
+                    if (downloadedFile.exists()) downloadedFile.delete()
+                } catch (ignored: Exception) {}
+                updateState(packageName, InstallState.Idle)
+                return@withContext
+            }
 
             val targetApkFile = if (isZip) {
                 updateState(packageName, InstallState.Extracting)
@@ -266,10 +410,40 @@ class AppInstaller(
             // Check if storage cache limit is exceeded and prune oldest if necessary, protecting targetApkFile
             com.whitestore.util.StorageManager.pruneApksIfNeeded(context, excludeFile = targetApkFile)
         } catch (e: Exception) {
+            if (pausedPackages.remove(packageName)) {
+                Log.d(TAG, "Caught exception on pause for $packageName: ${e.message}")
+                val curState = _installState.value[packageName]
+                if (curState is InstallState.Downloading) {
+                    updateState(packageName, InstallState.Paused(curState.progress, curState.downloadedBytes, curState.totalBytes))
+                } else if (curState !is InstallState.Paused) {
+                    val curLength = currentFile?.length() ?: 0L
+                    updateState(packageName, InstallState.Paused(0f, curLength, 0L))
+                }
+                return@withContext
+            }
+
+            val isCancelled = currentCall?.isCanceled() == true ||
+                cancelledPackages.remove(packageName) ||
+                e is java.util.concurrent.CancellationException ||
+                e is kotlinx.coroutines.CancellationException ||
+                (e is java.io.IOException && (e.message?.contains("cancel", ignoreCase = true) == true || e.message?.contains("closed", ignoreCase = true) == true))
+
+            if (isCancelled) {
+                Log.d(TAG, "Download cleanly cancelled for $packageName")
+                try {
+                    if (currentFile?.exists() == true) currentFile?.delete()
+                } catch (ignored: Exception) {}
+                updateState(packageName, InstallState.Idle)
+                return@withContext
+            }
             Log.e(TAG, "Download error", e)
             val msg = e.localizedMessage ?: "Ошибка скачивания"
             updateState(packageName, InstallState.Error(msg))
             showToast("Ошибка: $msg")
+        } finally {
+            activeCalls.remove(packageName)
+            cancelledPackages.remove(packageName)
+            pausedPackages.remove(packageName)
         }
     }
 

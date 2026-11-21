@@ -122,6 +122,7 @@ fun WhiteStoreTheme(
     themeMode: AppThemeMode = ThemePreferences.currentThemeMode.value,
     dynamicColor: Boolean = ThemePreferences.dynamicColorEnabled.value,
     accentColor: AccentColor = ThemePreferences.currentAccentColor.value,
+    amoledMode: Boolean = ThemePreferences.amoledModeEnabled.value,
     content: @Composable () -> Unit
 ) {
     val darkTheme = when (themeMode) {
@@ -131,11 +132,25 @@ fun WhiteStoreTheme(
     }
 
     val context = LocalContext.current
-    val colorScheme = when {
+    var colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
         else -> buildCustomColorScheme(accentColor, darkTheme)
+    }
+
+    if (darkTheme && amoledMode) {
+        colorScheme = colorScheme.copy(
+            background = Color.Black,
+            surface = Color.Black,
+            surfaceDim = Color.Black,
+            surfaceBright = Color(0xFF1E1E1E),
+            surfaceContainerLowest = Color.Black,
+            surfaceContainerLow = Color(0xFF080808),
+            surfaceContainer = Color(0xFF121212),
+            surfaceContainerHigh = Color(0xFF1A1A1A),
+            surfaceContainerHighest = Color(0xFF242424)
+        )
     }
 
     MaterialTheme(

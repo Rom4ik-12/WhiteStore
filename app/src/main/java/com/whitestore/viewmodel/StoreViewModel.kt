@@ -16,6 +16,7 @@ import com.whitestore.data.installer.InstallState
 import com.whitestore.data.model.AppDetail
 import com.whitestore.data.model.AppSummaryItem
 import com.whitestore.data.model.AppUpdateInfo
+import com.whitestore.data.model.RecentAppItem
 import com.whitestore.data.model.SuggestItem
 import com.whitestore.data.prefs.AppPreferences
 import com.whitestore.data.updater.SelfUpdateManager
@@ -116,6 +117,17 @@ class StoreViewModel(
     private val _hasCheckedUpdates = MutableStateFlow(false)
     val hasCheckedUpdates: StateFlow<Boolean> = _hasCheckedUpdates.asStateFlow()
 
+    // Recent apps state & cache
+    private val _recentApps = MutableStateFlow<List<RecentAppItem>>(emptyList())
+    val recentApps: StateFlow<List<RecentAppItem>> = _recentApps.asStateFlow()
+
+    private val _isRecentLoading = MutableStateFlow(false)
+    val isRecentLoading: StateFlow<Boolean> = _isRecentLoading.asStateFlow()
+
+    private var hasLoadedRecentApps = false
+
+    private val activeDownloadJobs = java.util.concurrent.ConcurrentHashMap<String, Job>()
+
     private var searchJob: Job? = null
 
     init {
@@ -131,11 +143,14 @@ class StoreViewModel(
                 }
         }
 
-        // Listen for package install/update/remove events to immediately remove updated apps from availableUpdates
+        // Listen for package install/update/remove events to immediately remove updated apps from availableUpdates and refresh recent apps
         viewModelScope.launch {
             installer.packageUpdateTrigger.collect { trigger ->
                 if (trigger > 0) {
                     filterUpdatedApps()
+                    if (hasLoadedRecentApps) {
+                        loadRecentApps(force = true)
+                    }
                 }
             }
         }
@@ -165,6 +180,78 @@ class StoreViewModel(
             }
         }
         _availableUpdates.value = remainingUpdates
+    }
+
+    fun loadRecentApps(force: Boolean = false) {
+        if (!force && hasLoadedRecentApps) return
+        viewModelScope.launch {
+            if (_isRecentLoading.value) return@launch
+            _isRecentLoading.value = true
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    val pm = context.packageManager
+                    val packages = pm.getInstalledApplications(0)
+                    val candidateItems = packages.filter { (it.flags and ApplicationInfo.FLAG_SYSTEM) == 0 && it.packageName != context.packageName }
+                        .mapNotNull { appInfo ->
+                            try {
+                                val pInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    pm.getPackageInfo(appInfo.packageName, PackageManager.PackageInfoFlags.of(0))
+                                } else {
+                                    @Suppress("DEPRECATION")
+                                    pm.getPackageInfo(appInfo.packageName, 0)
+                                }
+                                val label = pm.getApplicationLabel(appInfo).toString()
+                                val firstInstall = pInfo.firstInstallTime
+                                val lastUpdate = pInfo.lastUpdateTime
+                                val isUpdated = (lastUpdate - firstInstall) > 60_000L
+                                val mostRecentTime = maxOf(firstInstall, lastUpdate)
+                                val appSize = try {
+                                    java.io.File(appInfo.sourceDir).length()
+                                } catch (e: Exception) {
+                                    0L
+                                }
+
+                                RecentAppItem(
+                                    name = label,
+                                    packageName = appInfo.packageName,
+                                    versionName = pInfo.versionName ?: "",
+                                    firstInstallTime = firstInstall,
+                                    lastUpdateTime = lastUpdate,
+                                    isUpdated = isUpdated,
+                                    timestamp = mostRecentTime,
+                                    isInRuStore = false,
+                                    appSizeBytes = appSize
+                                )
+                            } catch (e: Exception) {
+                                null
+                            }
+                        }
+                        .sortedByDescending { it.timestamp }
+
+                    // Immediately emit candidate items so list opens in milliseconds without waiting for network
+                    _recentApps.value = candidateItems
+                    hasLoadedRecentApps = true
+                    _isRecentLoading.value = false
+
+                    val semaphore = Semaphore(6)
+                    val checkedItems = candidateItems.map { item ->
+                        async {
+                            val inStore = semaphore.withPermit {
+                                isPackageInRuStore(item.packageName)
+                            }
+                            item.copy(isInRuStore = inStore)
+                        }
+                    }.awaitAll()
+
+                    checkedItems
+                }
+                _recentApps.value = result
+            } catch (e: Exception) {
+                // ignore
+            } finally {
+                _isRecentLoading.value = false
+            }
+        }
     }
 
     fun checkSelfUpdate() {
@@ -401,7 +488,12 @@ class StoreViewModel(
     }
 
     fun startDownload(appId: Long, packageName: String, appName: String, saveOnly: Boolean = false, versionName: String? = null) {
-        viewModelScope.launch {
+        val existingJob = activeDownloadJobs[packageName]
+        if (existingJob != null && existingJob.isActive) {
+            return
+        }
+
+        val job = viewModelScope.launch {
             when (AppPreferences.updateNetworkMode.value) {
                 com.whitestore.data.prefs.UpdateNetworkMode.WIFI_ONLY -> {
                     if (!com.whitestore.util.NetworkUtils.isWifiConnected(context)) {
@@ -418,6 +510,7 @@ class StoreViewModel(
                 com.whitestore.data.prefs.UpdateNetworkMode.ANY -> {}
             }
 
+            val prevPausedState = installer.installState.value[packageName] as? InstallState.Paused
             installer.setResolving(packageName)
             try {
                 var targetAppId = appId
@@ -427,7 +520,7 @@ class StoreViewModel(
                 }
 
                 if (targetAppId <= 0L) {
-                    installer.updateState(packageName, InstallState.Error("Не удалось определить ID приложения"))
+                    installer.updateState(packageName, prevPausedState ?: InstallState.Error("Не удалось определить ID приложения"))
                     return@launch
                 }
 
@@ -435,12 +528,32 @@ class StoreViewModel(
                 if (!downloadUrl.isNullOrBlank()) {
                     installer.downloadAndInstall(packageName, downloadUrl, appName, saveOnly = saveOnly, versionName = versionName)
                 } else {
-                    installer.updateState(packageName, InstallState.Error("Ссылка на скачивание не найдена"))
+                    installer.updateState(packageName, prevPausedState ?: InstallState.Error("Ссылка на скачивание не найдена"))
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                Log.d("StoreViewModel", "startDownload job cancelled for $packageName")
+                if (installer.installState.value[packageName] !is InstallState.Paused) {
+                    installer.updateState(packageName, InstallState.Idle)
                 }
             } catch (e: Exception) {
-                installer.updateState(packageName, InstallState.Error(e.message ?: "Ошибка подготовки загрузки"))
+                installer.updateState(packageName, prevPausedState ?: InstallState.Error(e.message ?: "Ошибка подготовки загрузки"))
+            } finally {
+                activeDownloadJobs.remove(packageName)
             }
         }
+        activeDownloadJobs[packageName] = job
+    }
+
+    fun pauseDownload(packageName: String) {
+        installer.pauseDownload(packageName)
+        val job = activeDownloadJobs.remove(packageName)
+        job?.cancel()
+    }
+
+    fun cancelDownload(packageName: String) {
+        installer.cancelDownload(packageName)
+        val job = activeDownloadJobs.remove(packageName)
+        job?.cancel()
     }
 
     fun checkUpdates() {

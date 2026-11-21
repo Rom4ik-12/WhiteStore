@@ -41,6 +41,21 @@ enum class RecentAppsFilter(val title: String) {
     INSTALLED("Установленные")
 }
 
+enum class RecentHistoryDepth(val title: String, val shortLabel: String, val durationMs: Long) {
+    DAY_1("1 день", "1 дн", 24L * 3600 * 1000L),
+    WEEK_1("1 неделя", "1 нед", 7L * 24 * 3600 * 1000L),
+    MONTH_1("1 месяц", "1 мес", 30L * 24 * 3600 * 1000L),
+    MONTH_3("3 месяца", "3 мес", 90L * 24 * 3600 * 1000L),
+    YEAR_1("1 год", "1 год", 365L * 24 * 3600 * 1000L),
+    UNLIMITED("Без ограничений", "Вся", 0L)
+}
+
+enum class DownloadProgressFormat(val title: String) {
+    PERCENT("Проценты"),
+    BYTES("Размер"),
+    BOTH("Оба")
+}
+
 object AppPreferences {
     private const val PREFS_NAME = "whitestore_app_prefs"
     private const val KEY_OPEN_AFTER_INSTALL = "open_after_install"
@@ -58,9 +73,12 @@ object AppPreferences {
     private const val KEY_MAX_CACHE_SIZE_MB = "max_cache_size_mb"
     private const val KEY_DELETE_APK_AFTER_INSTALL = "delete_apk_after_install"
     private const val KEY_DOWNLOAD_SPEED_LIMIT_KB = "download_speed_limit_kb"
+    private const val KEY_SHOW_DOWNLOAD_SPEED = "show_download_speed"
+    private const val KEY_DOWNLOAD_PROGRESS_FORMAT = "download_progress_format"
     private const val KEY_OPEN_MY_APPS_ON_START = "open_my_apps_on_start"
     private const val KEY_RECENT_FILTER_RUSTORE_ONLY = "recent_filter_rustore_only"
     private const val KEY_RECENT_DEFAULT_FILTER = "recent_default_filter"
+    private const val KEY_RECENT_HISTORY_DEPTH = "recent_history_depth"
 
     // Home screen customisation keys
     private const val KEY_HOME_SHOW_HEADER_SUBTITLE = "home_show_header_subtitle"
@@ -90,9 +108,12 @@ object AppPreferences {
     val updateNetworkMode = mutableStateOf(UpdateNetworkMode.ANY)
     val maxCacheSizeMb = mutableStateOf(1024) // 1024 MB (1 GB) default. 0 = Unlimited.
     val downloadSpeedLimitKb = mutableStateOf(0) // 0 = No speed limit, otherwise KB/s (e.g. 512, 1024, 2048, 5120)
+    val showDownloadSpeed = mutableStateOf(true)
+    val downloadProgressFormat = mutableStateOf(DownloadProgressFormat.BOTH)
     val openMyAppsOnStart = mutableStateOf(false)
     val recentFilterRuStoreOnly = mutableStateOf(false)
     val recentDefaultFilter = mutableStateOf(RecentAppsFilter.ALL)
+    val recentHistoryDepth = mutableStateOf(RecentHistoryDepth.MONTH_3)
 
     // Home screen customisation states
     val homeShowHeaderSubtitle = mutableStateOf(true)
@@ -144,6 +165,13 @@ object AppPreferences {
         }
         maxCacheSizeMb.value = prefs.getInt(KEY_MAX_CACHE_SIZE_MB, 1024)
         downloadSpeedLimitKb.value = prefs.getInt(KEY_DOWNLOAD_SPEED_LIMIT_KB, 0)
+        showDownloadSpeed.value = prefs.getBoolean(KEY_SHOW_DOWNLOAD_SPEED, true)
+        val savedProgressFormat = prefs.getString(KEY_DOWNLOAD_PROGRESS_FORMAT, DownloadProgressFormat.BOTH.name) ?: DownloadProgressFormat.BOTH.name
+        downloadProgressFormat.value = try {
+            DownloadProgressFormat.valueOf(savedProgressFormat)
+        } catch (e: Exception) {
+            DownloadProgressFormat.BOTH
+        }
         openMyAppsOnStart.value = prefs.getBoolean(KEY_OPEN_MY_APPS_ON_START, false)
         recentFilterRuStoreOnly.value = prefs.getBoolean(KEY_RECENT_FILTER_RUSTORE_ONLY, false)
         val savedRecentFilter = prefs.getString(KEY_RECENT_DEFAULT_FILTER, RecentAppsFilter.ALL.name) ?: RecentAppsFilter.ALL.name
@@ -151,6 +179,12 @@ object AppPreferences {
             RecentAppsFilter.valueOf(savedRecentFilter)
         } catch (e: Exception) {
             RecentAppsFilter.ALL
+        }
+        val savedHistoryDepth = prefs.getString(KEY_RECENT_HISTORY_DEPTH, RecentHistoryDepth.MONTH_3.name) ?: RecentHistoryDepth.MONTH_3.name
+        recentHistoryDepth.value = try {
+            RecentHistoryDepth.valueOf(savedHistoryDepth)
+        } catch (e: Exception) {
+            RecentHistoryDepth.MONTH_3
         }
 
         // Home customisation
@@ -189,6 +223,12 @@ object AppPreferences {
         recentDefaultFilter.value = filter
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit { putString(KEY_RECENT_DEFAULT_FILTER, filter.name) }
+    }
+
+    fun setRecentHistoryDepth(context: Context, depth: RecentHistoryDepth) {
+        recentHistoryDepth.value = depth
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit { putString(KEY_RECENT_HISTORY_DEPTH, depth.name) }
     }
 
     fun setDeleteApkAfterInstall(context: Context, value: Boolean) {
@@ -354,5 +394,17 @@ object AppPreferences {
         homeShowAppSize.value = value
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit { putBoolean(KEY_HOME_SHOW_APP_SIZE, value) }
+    }
+
+    fun setShowDownloadSpeed(context: Context, value: Boolean) {
+        showDownloadSpeed.value = value
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit { putBoolean(KEY_SHOW_DOWNLOAD_SPEED, value) }
+    }
+
+    fun setDownloadProgressFormat(context: Context, format: DownloadProgressFormat) {
+        downloadProgressFormat.value = format
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit { putString(KEY_DOWNLOAD_PROGRESS_FORMAT, format.name) }
     }
 }

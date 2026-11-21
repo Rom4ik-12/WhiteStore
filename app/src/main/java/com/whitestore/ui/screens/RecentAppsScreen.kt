@@ -1,8 +1,5 @@
 package com.whitestore.ui.screens
 
-import android.content.pm.ApplicationInfo
-import android.content.pm.PackageManager
-import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,6 +12,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -27,122 +29,74 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.whitestore.data.installer.AppInstaller
+import com.whitestore.data.model.RecentAppItem
 import com.whitestore.data.prefs.AppPreferences
 import com.whitestore.data.prefs.RecentAppsFilter
+import com.whitestore.data.prefs.RecentHistoryDepth
 import com.whitestore.ui.components.ConnectedButtonGroup
 import com.whitestore.util.AppIcon
 import com.whitestore.util.TimeFormatUtils
 import com.whitestore.viewmodel.StoreViewModel
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
-import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-data class RecentAppItem(
-    val name: String,
-    val packageName: String,
-    val versionName: String,
-    val firstInstallTime: Long,
-    val lastUpdateTime: Long,
-    val isUpdated: Boolean,
-    val timestamp: Long,
-    val isInRuStore: Boolean
-)
+enum class RecentSortOrder(val title: String) {
+    TIME("По времени"),
+    SIZE("По размеру")
+}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun RecentAppsScreen(
     viewModel: StoreViewModel,
     installer: AppInstaller,
-    onNavigateToDetail: (String) -> Unit
+    onNavigateToDetail: (String) -> Unit,
+    onNavigateToSettings: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val packageTrigger by installer.packageUpdateTrigger.collectAsState()
+    val appsList by viewModel.recentApps.collectAsState()
+    val isLoading by viewModel.isRecentLoading.collectAsState()
     val ruStoreOnlyPref by AppPreferences.recentFilterRuStoreOnly
     val defaultFilterPref by AppPreferences.recentDefaultFilter
+    val historyDepthPref by AppPreferences.recentHistoryDepth
 
     var selectedFilter by remember { mutableStateOf(defaultFilterPref) }
-    var appsList by remember { mutableStateOf<List<RecentAppItem>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }
+    var sortOrder by remember { mutableStateOf(RecentSortOrder.TIME) }
 
     // Sync default filter if changed from settings
     LaunchedEffect(defaultFilterPref) {
         selectedFilter = defaultFilterPref
     }
 
-    LaunchedEffect(packageTrigger) {
-        isLoading = true
-        val result = withContext(Dispatchers.IO) {
-            val pm = context.packageManager
-            val packages = pm.getInstalledApplications(0)
-            val candidateItems = packages.filter { (it.flags and ApplicationInfo.FLAG_SYSTEM) == 0 && it.packageName != context.packageName }
-                .mapNotNull { appInfo ->
-                    try {
-                        val pInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            pm.getPackageInfo(appInfo.packageName, PackageManager.PackageInfoFlags.of(0))
-                        } else {
-                            @Suppress("DEPRECATION")
-                            pm.getPackageInfo(appInfo.packageName, 0)
-                        }
-                        val label = pm.getApplicationLabel(appInfo).toString()
-                        val firstInstall = pInfo.firstInstallTime
-                        val lastUpdate = pInfo.lastUpdateTime
-                        // If lastUpdateTime is significantly larger than firstInstallTime (> 60s), consider it updated
-                        val isUpdated = (lastUpdate - firstInstall) > 60_000L
-                        val mostRecentTime = maxOf(firstInstall, lastUpdate)
-
-                        RecentAppItem(
-                            name = label,
-                            packageName = appInfo.packageName,
-                            versionName = pInfo.versionName ?: "",
-                            firstInstallTime = firstInstall,
-                            lastUpdateTime = lastUpdate,
-                            isUpdated = isUpdated,
-                            timestamp = mostRecentTime,
-                            isInRuStore = false
-                        )
-                    } catch (e: Exception) {
-                        null
-                    }
-                }
-                .sortedByDescending { it.timestamp }
-
-            // Check RuStore status concurrently in background
-            val semaphore = Semaphore(6)
-            val checkedItems = candidateItems.map { item ->
-                async {
-                    val inStore = semaphore.withPermit {
-                        viewModel.isPackageInRuStore(item.packageName)
-                    }
-                    item.copy(isInRuStore = inStore)
-                }
-            }.awaitAll()
-
-            checkedItems
-        }
-        appsList = result
-        isLoading = false
+    // Trigger load once when opened if not loaded yet; subsequent openings are instant from cache
+    LaunchedEffect(Unit) {
+        viewModel.loadRecentApps(force = false)
     }
 
-    val filteredList = remember(appsList, selectedFilter, ruStoreOnlyPref) {
-        appsList.filter { item ->
+    val filteredList = remember(appsList, selectedFilter, ruStoreOnlyPref, historyDepthPref, sortOrder) {
+        val now = System.currentTimeMillis()
+        val minTimestamp = if (historyDepthPref.durationMs > 0L) now - historyDepthPref.durationMs else 0L
+
+        val filtered = appsList.filter { item ->
             val matchesFilter = when (selectedFilter) {
                 RecentAppsFilter.ALL -> true
                 RecentAppsFilter.UPDATED -> item.isUpdated
                 RecentAppsFilter.INSTALLED -> !item.isUpdated
             }
             val matchesRuStore = !ruStoreOnlyPref || item.isInRuStore
-            matchesFilter && matchesRuStore
+            val matchesDepth = historyDepthPref.durationMs == 0L || item.timestamp >= minTimestamp
+            matchesFilter && matchesRuStore && matchesDepth
+        }
+
+        when (sortOrder) {
+            RecentSortOrder.TIME -> filtered.sortedByDescending { it.timestamp }
+            RecentSortOrder.SIZE -> filtered.sortedByDescending { it.appSizeBytes }
         }
     }
 
     val dateFormatter = remember {
-        SimpleDateFormat("d MMMM yyyy, HH:mm", Locale("ru"))
+        SimpleDateFormat("d MMM, HH:mm", Locale("ru"))
     }
 
     Scaffold(
@@ -172,6 +126,49 @@ fun RecentAppsScreen(
                         )
                     }
                 },
+                actions = {
+                    var showSortMenu by remember { mutableStateOf(false) }
+                    Box {
+                        IconButton(onClick = { showSortMenu = true }) {
+                            Icon(
+                                imageVector = if (sortOrder == RecentSortOrder.TIME) Icons.Default.Schedule else Icons.Default.Storage,
+                                contentDescription = "Сортировка"
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = showSortMenu,
+                            onDismissRequest = { showSortMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Сначала недавние") },
+                                onClick = {
+                                    sortOrder = RecentSortOrder.TIME
+                                    showSortMenu = false
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Schedule, contentDescription = null)
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Сначала тяжелые (по размеру)") },
+                                onClick = {
+                                    sortOrder = RecentSortOrder.SIZE
+                                    showSortMenu = false
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Storage, contentDescription = null)
+                                }
+                            )
+                        }
+                    }
+
+                    IconButton(onClick = { viewModel.loadRecentApps(force = true) }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Обновить")
+                    }
+                    IconButton(onClick = onNavigateToSettings) {
+                        Icon(Icons.Default.Settings, contentDescription = "Настройки")
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
@@ -199,7 +196,7 @@ fun RecentAppsScreen(
                 ) {
                     Text(
                         text = when (selectedFilter) {
-                            RecentAppsFilter.ALL -> if (ruStoreOnlyPref) "Нет приложений из RuStore" else "Нет установленных приложений"
+                            RecentAppsFilter.ALL -> if (ruStoreOnlyPref) "Нет приложений из RuStore за этот период" else "Нет событий за этот период"
                             RecentAppsFilter.UPDATED -> "Обновленные приложения не найдены"
                             RecentAppsFilter.INSTALLED -> "Установленные приложения не найдены"
                         },
@@ -272,7 +269,9 @@ fun RecentAppsScreen(
                                                     text = if (app.isUpdated) "Обновлено" else "Установлено",
                                                     style = MaterialTheme.typography.labelSmall,
                                                     fontWeight = FontWeight.SemiBold,
-                                                    color = if (app.isUpdated) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onTertiaryContainer
+                                                    color = if (app.isUpdated) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onTertiaryContainer,
+                                                    maxLines = 1,
+                                                    softWrap = false
                                                 )
                                             }
                                         }
@@ -282,7 +281,10 @@ fun RecentAppsScreen(
                                             Text(
                                                 text = "v${app.versionName}",
                                                 style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.outline
+                                                color = MaterialTheme.colorScheme.outline,
+                                                maxLines = 1,
+                                                softWrap = false,
+                                                overflow = TextOverflow.Ellipsis
                                             )
                                         }
                                     }
@@ -296,24 +298,59 @@ fun RecentAppsScreen(
                                             ""
                                         }
                                     }
-                                    Text(
-                                        text = formattedDate,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = formattedDate,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                            softWrap = false
+                                        )
+                                        if (app.appSizeBytes > 0L) {
+                                            val formattedSize = remember(app.appSizeBytes) {
+                                                android.text.format.Formatter.formatFileSize(context, app.appSizeBytes)
+                                            }
+                                            Text(
+                                                text = " • $formattedSize",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                fontWeight = FontWeight.Medium,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                maxLines = 1,
+                                                softWrap = false
+                                            )
+                                        }
+                                    }
                                 }
 
-                                FilledTonalIconButton(
-                                    onClick = { installer.openApp(app.packageName) },
-                                    modifier = Modifier.size(40.dp),
-                                    shape = RoundedCornerShape(12.dp)
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                                        contentDescription = "Открыть",
-                                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                        modifier = Modifier.size(20.dp)
-                                    )
+                                    FilledTonalIconButton(
+                                        onClick = { installer.openAppDetailsSettings(app.packageName) },
+                                        modifier = Modifier.size(38.dp),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Info,
+                                            contentDescription = "О приложении",
+                                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                            modifier = Modifier.size(19.dp)
+                                        )
+                                    }
+
+                                    FilledTonalIconButton(
+                                        onClick = { installer.openApp(app.packageName) },
+                                        modifier = Modifier.size(38.dp),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                            contentDescription = "Открыть",
+                                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                            modifier = Modifier.size(19.dp)
+                                        )
+                                    }
                                 }
                             }
                         }

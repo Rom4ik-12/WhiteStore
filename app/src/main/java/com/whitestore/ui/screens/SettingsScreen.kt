@@ -36,6 +36,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.whitestore.data.prefs.AutoCheckInterval
+import com.whitestore.data.prefs.DownloadProgressFormat
+import com.whitestore.data.prefs.RecentAppsFilter
+import com.whitestore.data.prefs.RecentHistoryDepth
 import com.whitestore.data.prefs.UpdateNetworkMode
 import com.whitestore.data.updater.UpdateCheckReceiver
 import com.whitestore.ui.components.ConnectedButtonGroup
@@ -645,6 +648,7 @@ fun DesignSettingsScreen(
     val context = LocalContext.current
     var currentMode by remember { mutableStateOf(ThemePreferences.currentThemeMode.value) }
     var dynamicColorEnabled by remember { mutableStateOf(ThemePreferences.dynamicColorEnabled.value) }
+    var amoledModeEnabled by remember { mutableStateOf(ThemePreferences.amoledModeEnabled.value) }
     var currentAccentColor by remember { mutableStateOf(ThemePreferences.currentAccentColor.value) }
     var showInitialVersion by remember { mutableStateOf(AppPreferences.showInitialVersion.value) }
     var useIconUpdateButton by remember { mutableStateOf(AppPreferences.useIconUpdateButton.value) }
@@ -718,6 +722,38 @@ fun DesignSettingsScreen(
                             },
                             modifier = Modifier.fillMaxWidth()
                         )
+
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val newVal = !amoledModeEnabled
+                                    amoledModeEnabled = newVal
+                                    ThemePreferences.setAmoledModeEnabled(context, newVal)
+                                },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "AMOLED режим",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = "Глубокий чёрный цвет (#000000) для OLED/AMOLED дисплеев",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = amoledModeEnabled,
+                                onCheckedChange = {
+                                    amoledModeEnabled = it
+                                    ThemePreferences.setAmoledModeEnabled(context, it)
+                                }
+                            )
+                        }
 
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                             Spacer(modifier = Modifier.height(14.dp))
@@ -1615,6 +1651,8 @@ fun StorageSettingsScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var currentNetworkMode by remember { mutableStateOf(AppPreferences.updateNetworkMode.value) }
+    var currentProgressFormat by remember { mutableStateOf(AppPreferences.downloadProgressFormat.value) }
+    var currentShowSpeed by remember { mutableStateOf(AppPreferences.showDownloadSpeed.value) }
     var currentLimitMb by remember { mutableStateOf(AppPreferences.maxCacheSizeMb.value) }
     var currentSpeedLimitKb by remember { mutableStateOf(AppPreferences.downloadSpeedLimitKb.value) }
     var storageUsage by remember { mutableStateOf<StorageUsage?>(null) }
@@ -1705,6 +1743,85 @@ fun StorageSettingsScreen(
                             },
                             modifier = Modifier.fillMaxWidth()
                         )
+                    }
+                }
+            }
+
+            // Секция: Отображение прогресса загрузки
+            item {
+                Text(
+                    text = "Отображение прогресса загрузки",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = 4.dp, top = 6.dp, bottom = 2.dp)
+                )
+            }
+
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(22.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Формат информации на кнопке",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Что показывать во время скачивания: проценты (45%), размер (20 / 45 МБ) или оба значения",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        ConnectedButtonGroup(
+                            items = listOf(DownloadProgressFormat.PERCENT, DownloadProgressFormat.BYTES, DownloadProgressFormat.BOTH),
+                            selectedItem = currentProgressFormat,
+                            onItemSelected = { format ->
+                                currentProgressFormat = format
+                                AppPreferences.setDownloadProgressFormat(context, format)
+                            },
+                            labelProvider = { it.title },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 14.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Показывать скорость скачивания",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Отображать текущую скорость (например, 3.4 МБ/с) рядом с прогрессом",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = currentShowSpeed,
+                                onCheckedChange = { checked ->
+                                    currentShowSpeed = checked
+                                    AppPreferences.setShowDownloadSpeed(context, checked)
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -2513,6 +2630,7 @@ fun RecentSettingsScreen(
     val context = LocalContext.current
     var ruStoreOnly by remember { mutableStateOf(AppPreferences.recentFilterRuStoreOnly.value) }
     var defaultFilter by remember { mutableStateOf(AppPreferences.recentDefaultFilter.value) }
+    var historyDepth by remember { mutableStateOf(AppPreferences.recentHistoryDepth.value) }
 
     Scaffold(
         topBar = {
@@ -2536,6 +2654,105 @@ fun RecentSettingsScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Глубина истории
+            item {
+                Text(
+                    text = "Глубина истории",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
+                )
+            }
+
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(22.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Период: ${historyDepth.title}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Показывать приложения, установленные или обновленные за выбранное время",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        val depthSliderValue = when (historyDepth) {
+                            RecentHistoryDepth.DAY_1 -> 0f
+                            RecentHistoryDepth.WEEK_1 -> 1f
+                            RecentHistoryDepth.MONTH_1 -> 2f
+                            RecentHistoryDepth.MONTH_3 -> 3f
+                            RecentHistoryDepth.YEAR_1 -> 4f
+                            RecentHistoryDepth.UNLIMITED -> 5f
+                        }
+
+                        Slider(
+                            value = depthSliderValue,
+                            onValueChange = { pos ->
+                                val roundedIndex = Math.round(pos).toInt().coerceIn(0, 5)
+                                val targetDepth = when (roundedIndex) {
+                                    0 -> RecentHistoryDepth.DAY_1
+                                    1 -> RecentHistoryDepth.WEEK_1
+                                    2 -> RecentHistoryDepth.MONTH_1
+                                    3 -> RecentHistoryDepth.MONTH_3
+                                    4 -> RecentHistoryDepth.YEAR_1
+                                    else -> RecentHistoryDepth.UNLIMITED
+                                }
+                                historyDepth = targetDepth
+                                AppPreferences.setRecentHistoryDepth(context, targetDepth)
+                            },
+                            valueRange = 0f..5f,
+                            steps = 4,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        val depthLabels = listOf("1 дн", "1 нед", "1 мес", "3 мес", "1 год", "Вся")
+                        BoxWithConstraints(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 4.dp)
+                        ) {
+                            val totalWidth = maxWidth
+                            val thumbRadius = 10.dp
+                            val usableWidth = totalWidth - (thumbRadius * 2)
+                            val stepFraction = usableWidth / 5
+
+                            depthLabels.forEachIndexed { index, label ->
+                                val offsetCenterX = thumbRadius + (stepFraction * index)
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .wrapContentSize(Alignment.TopStart)
+                                        .offset(x = offsetCenterX)
+                                ) {
+                                    Box(
+                                        modifier = Modifier.offset(x = (-30).dp).width(60.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = label,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.outline,
+                                            maxLines = 1
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // Источник приложений
             item {
                 Text(
@@ -2618,7 +2835,7 @@ fun RecentSettingsScreen(
                         Spacer(modifier = Modifier.height(12.dp))
 
                         ConnectedButtonGroup(
-                            items = com.whitestore.data.prefs.RecentAppsFilter.entries,
+                            items = RecentAppsFilter.entries,
                             selectedItem = defaultFilter,
                             onItemSelected = { filter ->
                                 defaultFilter = filter

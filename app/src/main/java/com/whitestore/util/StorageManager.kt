@@ -3,6 +3,7 @@ package com.whitestore.util
 import android.content.Context
 import android.os.Environment
 import com.whitestore.data.prefs.AppPreferences
+import com.whitestore.data.prefs.DownloadProgressFormat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -207,6 +208,88 @@ object StorageManager {
             destFile
         } catch (e: Exception) {
             null
+        }
+    }
+
+    fun formatSpeed(bytesPerSec: Long): String {
+        if (bytesPerSec <= 0) return ""
+        val kb = bytesPerSec / 1024.0
+        val mb = kb / 1024.0
+        return if (mb >= 1.0) {
+            String.format(java.util.Locale.US, "%.1f МБ/с", mb)
+        } else {
+            String.format(java.util.Locale.US, "%d КБ/с", kb.toLong())
+        }
+    }
+
+    fun formatDownloadProgress(
+        progress: Float,
+        downloadedBytes: Long,
+        totalBytes: Long,
+        speedBytesPerSec: Long = 0L,
+        format: DownloadProgressFormat = AppPreferences.downloadProgressFormat.value,
+        showSpeed: Boolean = AppPreferences.showDownloadSpeed.value
+    ): String {
+        val pct = if (progress > 0f) "${(progress * 100).toInt()}%" else "Загрузка..."
+        val downloadedMb = downloadedBytes / (1024.0 * 1024.0)
+        val totalMb = totalBytes / (1024.0 * 1024.0)
+        val sizeText = if (totalMb > 0) {
+            String.format(java.util.Locale.US, "%.1f/%.1f МБ", downloadedMb, totalMb)
+        } else if (downloadedMb > 0) {
+            String.format(java.util.Locale.US, "%.1f МБ", downloadedMb)
+        } else ""
+
+        val progressPart = when (format) {
+            DownloadProgressFormat.PERCENT -> pct
+            DownloadProgressFormat.BYTES -> sizeText.ifEmpty { pct }
+            DownloadProgressFormat.BOTH -> {
+                if (sizeText.isNotEmpty()) "$pct ($sizeText)" else pct
+            }
+        }
+
+        val speedText = if (showSpeed && speedBytesPerSec > 0) {
+            formatSpeed(speedBytesPerSec)
+        } else ""
+
+        return if (speedText.isNotEmpty()) {
+            "$progressPart • $speedText"
+        } else {
+            progressPart
+        }
+    }
+
+    /**
+     * Backs up an installed application's APK directly to the public Downloads folder.
+     */
+    suspend fun backupAppApk(context: Context, packageName: String, appName: String, versionName: String?): File? = withContext(Dispatchers.IO) {
+        try {
+            val pm = context.packageManager
+            val appInfo = pm.getApplicationInfo(packageName, 0)
+            val srcFile = File(appInfo.sourceDir)
+            if (!srcFile.exists()) return@withContext null
+            val verSuffix = if (!versionName.isNullOrBlank()) "_v$versionName" else ""
+            val targetName = "${appName}${verSuffix}.apk"
+            saveApkToDownloads(context, srcFile, targetName)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /**
+     * Copies installed APK to cache and opens Android system share sheet.
+     */
+    fun shareInstalledAppApk(context: Context, packageName: String) {
+        try {
+            val pm = context.packageManager
+            val appInfo = pm.getApplicationInfo(packageName, 0)
+            val srcFile = File(appInfo.sourceDir)
+            if (!srcFile.exists()) return
+
+            val cacheApk = File(context.externalCacheDir ?: context.cacheDir, "${packageName}.apk")
+            srcFile.copyTo(cacheApk, overwrite = true)
+            shareApk(context, cacheApk)
+        } catch (e: Exception) {
+            android.widget.Toast.makeText(context, "Не удалось отправить APK", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 
