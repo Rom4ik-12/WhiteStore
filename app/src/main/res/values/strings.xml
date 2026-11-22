@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">WhiteStore</string>
+    <string name="shortcut_updates">Обновления</string>
+    <string name="shortcut_my">Моё</string>
 </resources>

@@ -29,10 +29,14 @@ import com.whitestore.viewmodel.StoreViewModel
 
 class MainActivity : ComponentActivity() {
 
+    val pendingShortcut = mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ThemePreferences.init(this)
         AppPreferences.init(this)
+        com.whitestore.util.AppIconManager.syncCurrentAppIcon(this)
+        handleShortcutIntent(intent)
         enableEdgeToEdge()
 
         val app = application as WhiteStoreApp
@@ -40,18 +44,54 @@ class MainActivity : ComponentActivity() {
         setContent {
             WhiteStoreTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    WhiteStoreNavigation(app = app)
+                    WhiteStoreNavigation(app = app, mainActivity = this)
                 }
             }
+        }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleShortcutIntent(intent)
+    }
+
+    private fun handleShortcutIntent(intent: android.content.Intent?) {
+        val sc = intent?.getStringExtra("shortcut")
+        if (!sc.isNullOrBlank()) {
+            pendingShortcut.value = sc
         }
     }
 }
 
 @Composable
-fun WhiteStoreNavigation(app: WhiteStoreApp) {
+fun WhiteStoreNavigation(app: WhiteStoreApp, mainActivity: MainActivity? = null) {
     val navController = rememberNavController()
     val viewModel = remember {
         StoreViewModel(app.apiService, app.appInstaller, app.selfUpdateManager, app)
+    }
+
+    val shortcutTarget = mainActivity?.pendingShortcut?.value
+    LaunchedEffect(shortcutTarget) {
+        if (shortcutTarget != null) {
+            when (shortcutTarget) {
+                "updates" -> {
+                    navController.navigate("updates") {
+                        launchSingleTop = true
+                    }
+                }
+                "profile" -> {
+                    navController.navigate("profile") {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
+            }
+            mainActivity.pendingShortcut.value = null
+        }
     }
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -121,7 +161,17 @@ fun WhiteStoreNavigation(app: WhiteStoreApp) {
         }
     ) { innerPadding ->
         val startDest = remember {
-            if (AppPreferences.openMyAppsOnStart.value) "profile" else "catalog"
+            when (mainActivity?.pendingShortcut?.value) {
+                "updates" -> {
+                    mainActivity.pendingShortcut.value = null
+                    "updates"
+                }
+                "profile" -> {
+                    mainActivity.pendingShortcut.value = null
+                    "profile"
+                }
+                else -> if (AppPreferences.openMyAppsOnStart.value) "profile" else "catalog"
+            }
         }
         NavHost(
             navController = navController,

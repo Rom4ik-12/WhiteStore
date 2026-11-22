@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="shortcut_updates"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_updates"
+        android:shortcutShortLabel="@string/shortcut_updates"
+        android:shortcutLongLabel="@string/shortcut_updates">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.whitestore"
+            android:targetClass="com.whitestore.MainActivity">
+            <extra android:name="shortcut" android:value="updates" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="shortcut_my"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_my"
+        android:shortcutShortLabel="@string/shortcut_my"
+        android:shortcutLongLabel="@string/shortcut_my">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.whitestore"
+            android:targetClass="com.whitestore.MainActivity">
+            <extra android:name="shortcut" android:value="profile" />
+        </intent>
+    </shortcut>
+</shortcuts>

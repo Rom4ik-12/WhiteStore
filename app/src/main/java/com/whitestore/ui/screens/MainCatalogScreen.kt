@@ -8,10 +8,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Refresh
@@ -19,6 +21,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,6 +41,14 @@ import com.whitestore.ui.components.AppCardItem
 import com.whitestore.ui.components.ExpressiveConnectedCategoryChip
 import com.whitestore.viewmodel.StoreViewModel
 
+enum class CatalogSortOrder(val title: String, val shortTitle: String) {
+    DEFAULT("По умолчанию", "По умолчанию"),
+    RATING("По рейтингу", "Рейтинг ⭐"),
+    NAME_ASC("По названию (А - Я)", "А - Я"),
+    NAME_DESC("По названию (Я - А)", "Я - А"),
+    REVIEWS("По оценкам", "Популярные 🔥")
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MainCatalogScreen(
@@ -47,6 +58,17 @@ fun MainCatalogScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val packageTrigger by installer.packageUpdateTrigger.collectAsState()
+    var currentSortOrder by rememberSaveable { mutableStateOf(CatalogSortOrder.DEFAULT) }
+
+    val sortedApps = remember(uiState.apps, currentSortOrder) {
+        when (currentSortOrder) {
+            CatalogSortOrder.DEFAULT -> uiState.apps
+            CatalogSortOrder.RATING -> uiState.apps.sortedByDescending { it.averageUserRating ?: 0.0 }
+            CatalogSortOrder.NAME_ASC -> uiState.apps.sortedBy { it.appName.lowercase() }
+            CatalogSortOrder.NAME_DESC -> uiState.apps.sortedByDescending { it.appName.lowercase() }
+            CatalogSortOrder.REVIEWS -> uiState.apps.sortedByDescending { it.totalRatings ?: 0L }
+        }
+    }
 
     // Home screen customisation preferences
     val showHeaderSubtitle by AppPreferences.homeShowHeaderSubtitle
@@ -182,8 +204,24 @@ fun MainCatalogScreen(
                     }
                 } else {
                     val isDefaultCatalog = uiState.searchQuery.isBlank() && uiState.selectedCategory.isBlank()
+                    val listState = rememberLazyListState()
+
+                    val shouldLoadMore = remember {
+                        derivedStateOf {
+                            val totalItems = listState.layoutInfo.totalItemsCount
+                            val lastVisibleIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+                            totalItems > 4 && lastVisibleIndex >= totalItems - 2
+                        }
+                    }
+
+                    LaunchedEffect(shouldLoadMore.value) {
+                        if (shouldLoadMore.value && !uiState.isLoading && !uiState.isLoadingMore && uiState.hasMorePages) {
+                            viewModel.loadMoreCatalogApps()
+                        }
+                    }
 
                     LazyColumn(
+                        state = listState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 20.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -191,7 +229,7 @@ fun MainCatalogScreen(
                         // If standard catalog without search/filter, show Featured Carousel & Editorial Cards
                         if (isDefaultCatalog && uiState.apps.isNotEmpty()) {
                             val topFeatured = uiState.apps.take(4)
-                            val remainingApps = uiState.apps.drop(if (showFeaturedCarousel) 4 else 0)
+                            val remainingApps = if (showFeaturedCarousel) sortedApps.drop(4) else sortedApps
 
                             // 1. "В центре внимания" Horizontal Carousel
                             if (showFeaturedCarousel && topFeatured.isNotEmpty()) {
@@ -300,7 +338,7 @@ fun MainCatalogScreen(
                                 }
                             }
 
-                            // 5. Section Title
+                            // 5. Section Title with Clean Sort Icon
                             item {
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Row(
@@ -313,11 +351,47 @@ fun MainCatalogScreen(
                                         style = MaterialTheme.typography.titleLarge,
                                         fontWeight = FontWeight.Bold
                                     )
-                                    Text(
-                                        text = "${remainingApps.size}",
-                                        style = MaterialTheme.typography.labelLarge,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
+
+                                    var showSortMenu by remember { mutableStateOf(false) }
+                                    Box {
+                                        FilledTonalIconButton(
+                                            onClick = { showSortMenu = true },
+                                            modifier = Modifier.size(36.dp),
+                                            shape = RoundedCornerShape(10.dp),
+                                            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                                containerColor = if (currentSortOrder != CatalogSortOrder.DEFAULT)
+                                                    MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                                contentColor = if (currentSortOrder != CatalogSortOrder.DEFAULT)
+                                                    MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.AutoMirrored.Filled.Sort,
+                                                contentDescription = "Сортировка",
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+
+                                        DropdownMenu(
+                                            expanded = showSortMenu,
+                                            onDismissRequest = { showSortMenu = false }
+                                        ) {
+                                            CatalogSortOrder.values().forEach { sort ->
+                                                DropdownMenuItem(
+                                                    text = { Text(sort.title) },
+                                                    trailingIcon = {
+                                                        if (sort == currentSortOrder) {
+                                                            Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                        }
+                                                    },
+                                                    onClick = {
+                                                        currentSortOrder = sort
+                                                        showSortMenu = false
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                             }
 
@@ -369,16 +443,65 @@ fun MainCatalogScreen(
                                 } else {
                                     uiState.selectedCategory
                                 }
-                                Text(
-                                    text = title,
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(bottom = 4.dp)
-                                )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = title,
+                                        style = MaterialTheme.typography.titleLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.weight(1f)
+                                    )
+
+                                    var showSortMenu by remember { mutableStateOf(false) }
+                                    Box {
+                                        FilledTonalIconButton(
+                                            onClick = { showSortMenu = true },
+                                            modifier = Modifier.size(36.dp),
+                                            shape = RoundedCornerShape(10.dp),
+                                            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                                containerColor = if (currentSortOrder != CatalogSortOrder.DEFAULT)
+                                                    MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                                contentColor = if (currentSortOrder != CatalogSortOrder.DEFAULT)
+                                                    MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.AutoMirrored.Filled.Sort,
+                                                contentDescription = "Сортировка",
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+
+                                        DropdownMenu(
+                                            expanded = showSortMenu,
+                                            onDismissRequest = { showSortMenu = false }
+                                        ) {
+                                            CatalogSortOrder.values().forEach { sort ->
+                                                DropdownMenuItem(
+                                                    text = { Text(sort.title) },
+                                                    trailingIcon = {
+                                                        if (sort == currentSortOrder) {
+                                                            Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                        }
+                                                    },
+                                                    onClick = {
+                                                        currentSortOrder = sort
+                                                        showSortMenu = false
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
                             }
 
                             if (catalogStyle == "GRID") {
-                                val chunkedApps = uiState.apps.chunked(2)
+                                val chunkedApps = sortedApps.chunked(2)
                                 items(chunkedApps) { rowPair ->
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
@@ -402,7 +525,7 @@ fun MainCatalogScreen(
                                     }
                                 }
                             } else {
-                                items(uiState.apps, key = { it.packageName }) { app ->
+                                items(sortedApps, key = { it.packageName }) { app ->
                                     val isInstalled = remember(app.packageName, packageTrigger) {
                                         installer.isAppInstalled(app.packageName)
                                     }
@@ -413,6 +536,22 @@ fun MainCatalogScreen(
                                         showRating = showAppRating,
                                         showExtraInfo = showAppSize,
                                         onClick = { onNavigateToDetail(app.packageName) }
+                                    )
+                                }
+                            }
+                        }
+
+                        if (uiState.isLoadingMore) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    LoadingIndicator(
+                                        modifier = Modifier.size(28.dp),
+                                        color = MaterialTheme.colorScheme.primary
                                     )
                                 }
                             }

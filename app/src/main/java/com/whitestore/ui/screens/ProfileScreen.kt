@@ -6,6 +6,14 @@ import android.net.Uri
 import android.os.Build
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -430,144 +438,13 @@ fun ProfileScreen(
 
             // WhiteStore app update card
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(MaterialTheme.colorScheme.primary),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.ShoppingBag,
-                                contentDescription = "WhiteStore",
-                                tint = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.size(26.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(14.dp))
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "WhiteStore",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            when (val state = selfUpdateState) {
-                                is SelfUpdateState.UpdateAvailable -> {
-                                    Text(
-                                        text = "Доступна версия v${state.latestVersion}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                }
-                                is SelfUpdateState.Downloading -> {
-                                    Text(
-                                        text = "Загрузка: ${(state.progress * 100).toInt()}%",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.secondary
-                                    )
-                                }
-                                else -> {
-                                    val lastCheckInfo = if (lastCheckTime > 0L) " • ${TimeFormatUtils.formatRelativeTime(lastCheckTime)}" else ""
-                                    Text(
-                                        text = "Версия $appVersionName$lastCheckInfo",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.outline
-                                    )
-                                }
-                            }
-                        }
-
-                        when (val state = selfUpdateState) {
-                            is SelfUpdateState.UpdateAvailable -> {
-                                FilledIconButton(
-                                    onClick = {
-                                        viewModel.downloadSelfUpdate(state.downloadUrl)
-                                    },
-                                    modifier = Modifier.size(40.dp),
-                                    shape = RoundedCornerShape(12.dp),
-                                    colors = IconButtonDefaults.filledIconButtonColors(
-                                        containerColor = MaterialTheme.colorScheme.primary,
-                                        contentColor = MaterialTheme.colorScheme.onPrimary
-                                    )
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Download,
-                                        contentDescription = "Обновить WhiteStore",
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-                            is SelfUpdateState.Downloading -> {
-                                Box(
-                                    modifier = Modifier.size(40.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    ContainedLoadingIndicator(modifier = Modifier.size(36.dp))
-                                }
-                            }
-                            is SelfUpdateState.Checking -> {
-                                Box(
-                                    modifier = Modifier.size(40.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    LoadingIndicator(modifier = Modifier.size(24.dp))
-                                }
-                            }
-                            is SelfUpdateState.UpToDate -> {
-                                FilledTonalIconButton(
-                                    onClick = {
-                                        viewModel.checkSelfUpdate()
-                                    },
-                                    modifier = Modifier.size(40.dp),
-                                    shape = RoundedCornerShape(12.dp),
-                                    colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
-                                        contentColor = MaterialTheme.colorScheme.primary
-                                    )
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = "Версия актуальна",
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-                            else -> {
-                                FilledTonalIconButton(
-                                    onClick = {
-                                        viewModel.checkSelfUpdate()
-                                    },
-                                    modifier = Modifier.size(40.dp),
-                                    shape = RoundedCornerShape(12.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Refresh,
-                                        contentDescription = "Проверить обновления",
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
+                WhiteStoreUpdateCard(
+                    selfUpdateState = selfUpdateState,
+                    appVersionName = appVersionName,
+                    lastCheckTime = lastCheckTime,
+                    onDownload = { viewModel.downloadSelfUpdate(it) },
+                    onCheck = { viewModel.checkSelfUpdate() }
+                )
             }
 
             // Settings row
@@ -630,6 +507,309 @@ fun ProfileScreen(
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
+fun WhiteStoreUpdateCard(
+    selfUpdateState: SelfUpdateState,
+    appVersionName: String,
+    lastCheckTime: Long,
+    onDownload: (String) -> Unit,
+    onCheck: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var isChangelogExpanded by rememberSaveable { mutableStateOf(false) }
+    val isUpdate = selfUpdateState is SelfUpdateState.UpdateAvailable
+
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .animateContentSize(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isUpdate) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+            else MaterialTheme.colorScheme.surfaceContainer
+        )
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(
+                        if (isUpdate) Modifier.clickable { isChangelogExpanded = !isChangelogExpanded }
+                        else Modifier
+                    )
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(MaterialTheme.colorScheme.primary),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ShoppingBag,
+                        contentDescription = "WhiteStore",
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(14.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "WhiteStore",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (isUpdate) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Icon(
+                                imageVector = if (isChangelogExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                contentDescription = if (isChangelogExpanded) "Свернуть" else "Что нового",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(2.dp))
+                    when (val state = selfUpdateState) {
+                        is SelfUpdateState.UpdateAvailable -> {
+                            Text(
+                                text = "Доступна v${state.latestVersion} • " + (if (isChangelogExpanded) "Свернуть ченджлог" else "Что нового"),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        is SelfUpdateState.Downloading -> {
+                            Text(
+                                text = "Загрузка: ${(state.progress * 100).toInt()}%",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        }
+                        else -> {
+                            val lastCheckInfo = if (lastCheckTime > 0L) " • ${TimeFormatUtils.formatRelativeTime(lastCheckTime)}" else ""
+                            Text(
+                                text = "Версия $appVersionName$lastCheckInfo",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.outline
+                            )
+                        }
+                    }
+                }
+
+                when (val state = selfUpdateState) {
+                    is SelfUpdateState.UpdateAvailable -> {
+                        FilledIconButton(
+                            onClick = { onDownload(state.downloadUrl) },
+                            modifier = Modifier.size(40.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Download,
+                                contentDescription = "Обновить WhiteStore",
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                    is SelfUpdateState.Downloading -> {
+                        Box(
+                            modifier = Modifier.size(40.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            ContainedLoadingIndicator(modifier = Modifier.size(36.dp))
+                        }
+                    }
+                    is SelfUpdateState.Checking -> {
+                        Box(
+                            modifier = Modifier.size(40.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            LoadingIndicator(modifier = Modifier.size(24.dp))
+                        }
+                    }
+                    is SelfUpdateState.UpToDate -> {
+                        FilledTonalIconButton(
+                            onClick = onCheck,
+                            modifier = Modifier.size(40.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+                                contentColor = MaterialTheme.colorScheme.primary
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "Версия актуальна",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                    else -> {
+                        FilledTonalIconButton(
+                            onClick = onCheck,
+                            modifier = Modifier.size(40.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Проверить обновления",
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (isUpdate && isChangelogExpanded) {
+                val state = selfUpdateState as SelfUpdateState.UpdateAvailable
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
+                ) {
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Article,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Что нового в v${state.latestVersion}:",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Box(modifier = Modifier.padding(14.dp)) {
+                            FormattedMarkdownChangelog(markdownText = state.releaseNotes.trim())
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun FormattedMarkdownChangelog(
+    markdownText: String,
+    modifier: Modifier = Modifier
+) {
+    val lines = remember(markdownText) {
+        markdownText.lines()
+    }
+
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        lines.forEach { rawLine ->
+            val line = rawLine.trim()
+            if (line.isEmpty()) {
+                Spacer(modifier = Modifier.height(2.dp))
+            } else if (line.startsWith("###") || line.startsWith("##") || line.startsWith("#")) {
+                val header = line.trimStart('#').trim()
+                Text(
+                    text = header,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
+                )
+            } else {
+                val isBullet = line.startsWith("- ") || line.startsWith("* ")
+                val cleanContent = if (isBullet) line.substring(2).trim() else line
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    if (isBullet) {
+                        Text(
+                            text = "•",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(end = 8.dp)
+                        )
+                    }
+
+                    val annotated = remember(cleanContent) {
+                        buildMarkdownAnnotatedString(cleanContent)
+                    }
+
+                    Text(
+                        text = annotated,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 18.sp,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+fun buildMarkdownAnnotatedString(text: String): AnnotatedString {
+    return buildAnnotatedString {
+        var cursor = 0
+        val regex = Regex("""(\*\*(.*?)\*\*|`([^`]+)`)""")
+        val matches = regex.findAll(text)
+
+        for (match in matches) {
+            val range = match.range
+            if (range.first > cursor) {
+                append(text.substring(cursor, range.first))
+            }
+
+            val boldContent = match.groups[2]?.value
+            val codeContent = match.groups[3]?.value
+
+            if (boldContent != null) {
+                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                    append(boldContent)
+                }
+            } else if (codeContent != null) {
+                withStyle(SpanStyle(fontFamily = FontFamily.Monospace)) {
+                    append(codeContent)
+                }
+            }
+            cursor = range.last + 1
+        }
+
+        if (cursor < text.length) {
+            append(text.substring(cursor))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
 fun UpdatesScreen(
     viewModel: StoreViewModel,
     installer: AppInstaller,
@@ -644,7 +824,15 @@ fun UpdatesScreen(
     val lastCheckTime by AppPreferences.lastUpdateCheckTime
     val showInitialVersion by AppPreferences.showInitialVersion
     val useIconUpdateButton by AppPreferences.useIconUpdateButton
+    val selfUpdateState by viewModel.selfUpdateState.collectAsState()
     val context = LocalContext.current
+    val appVersionName = remember {
+        try {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0.3"
+        } catch (e: Exception) {
+            "1.0.3"
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -713,42 +901,58 @@ fun UpdatesScreen(
             )
         }
     ) { innerPadding ->
-        if (availableUpdates.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(54.dp)
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = "Все приложения обновлены",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Новых версий пока нет",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.outline
+        val isSelfUpdateAvailable = selfUpdateState is SelfUpdateState.UpdateAvailable
+
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            if (isSelfUpdateAvailable) {
+                item {
+                    WhiteStoreUpdateCard(
+                        selfUpdateState = selfUpdateState,
+                        appVersionName = appVersionName,
+                        lastCheckTime = lastCheckTime,
+                        onDownload = { viewModel.downloadSelfUpdate(it) },
+                        onCheck = { viewModel.checkSelfUpdate() }
                     )
                 }
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
+
+            if (availableUpdates.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = if (isSelfUpdateAvailable) 32.dp else 120.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(54.dp)
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "Все установленные приложения обновлены",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Новых версий пока нет",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.outline
+                            )
+                        }
+                    }
+                }
+            } else {
                 items(availableUpdates) { update ->
                     val installState = installStates[update.packageName] ?: InstallState.Idle
                     Card(

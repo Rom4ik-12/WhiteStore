@@ -42,6 +42,9 @@ data class StoreUiState(
     val selectedCategory: String = "",
     val isSearching: Boolean = false,
     val isLoading: Boolean = false,
+    val isLoadingMore: Boolean = false,
+    val currentPage: Int = 0,
+    val hasMorePages: Boolean = true,
     val suggestions: List<SuggestItem> = emptyList(),
     val apps: List<AppSummaryItem> = emptyList(),
     val recommendedApps: List<AppSummaryItem> = emptyList(),
@@ -366,6 +369,9 @@ class StoreViewModel(
                     recommendedApps = recApps,
                     newApps = newApps,
                     gamesApps = gamesApps,
+                    currentPage = 0,
+                    hasMorePages = true,
+                    isLoadingMore = false,
                     isLoading = false
                 )
             } catch (e: Exception) {
@@ -437,6 +443,9 @@ class StoreViewModel(
                 result.content.forEach { appSummaryCache[it.packageName] = it }
                 _uiState.value = _uiState.value.copy(
                     apps = result.content,
+                    currentPage = 0,
+                    hasMorePages = result.content.size >= 15,
+                    isLoadingMore = false,
                     isLoading = false
                 )
             } catch (e: Exception) {
@@ -444,6 +453,44 @@ class StoreViewModel(
                     isLoading = false,
                     error = e.message
                 )
+            }
+        }
+    }
+
+    fun loadMoreCatalogApps() {
+        val state = _uiState.value
+        if (state.isLoading || state.isLoadingMore || !state.hasMorePages) return
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoadingMore = true)
+            try {
+                val nextPage = state.currentPage + 1
+                val query = if (state.searchQuery.isNotBlank()) {
+                    state.searchQuery
+                } else if (state.selectedCategory.isNotBlank()) {
+                    state.selectedCategory
+                } else {
+                    "Банк"
+                }
+                val result = apiService.searchApps(query, pageNumber = nextPage, pageSize = 20)
+                if (result.content.isNotEmpty()) {
+                    result.content.forEach { appSummaryCache[it.packageName] = it }
+                    val existingPkgs = state.apps.map { it.packageName }.toSet()
+                    val newUnique = result.content.filter { !existingPkgs.contains(it.packageName) }
+                    _uiState.value = _uiState.value.copy(
+                        apps = state.apps + newUnique,
+                        currentPage = nextPage,
+                        hasMorePages = result.content.size >= 10,
+                        isLoadingMore = false
+                    )
+                } else {
+                    _uiState.value = _uiState.value.copy(
+                        hasMorePages = false,
+                        isLoadingMore = false
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(isLoadingMore = false)
             }
         }
     }

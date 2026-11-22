@@ -79,6 +79,7 @@ object AppPreferences {
     private const val KEY_RECENT_FILTER_RUSTORE_ONLY = "recent_filter_rustore_only"
     private const val KEY_RECENT_DEFAULT_FILTER = "recent_default_filter"
     private const val KEY_RECENT_HISTORY_DEPTH = "recent_history_depth"
+    private const val KEY_APP_ICON = "app_icon"
 
     // Home screen customisation keys
     private const val KEY_HOME_SHOW_HEADER_SUBTITLE = "home_show_header_subtitle"
@@ -114,6 +115,7 @@ object AppPreferences {
     val recentFilterRuStoreOnly = mutableStateOf(false)
     val recentDefaultFilter = mutableStateOf(RecentAppsFilter.ALL)
     val recentHistoryDepth = mutableStateOf(RecentHistoryDepth.MONTH_3)
+    val appIcon = mutableStateOf("CLASSIC")
 
     // Home screen customisation states
     val homeShowHeaderSubtitle = mutableStateOf(true)
@@ -186,6 +188,7 @@ object AppPreferences {
         } catch (e: Exception) {
             RecentHistoryDepth.MONTH_3
         }
+        appIcon.value = prefs.getString(KEY_APP_ICON, "CLASSIC") ?: "CLASSIC"
 
         // Home customisation
         homeShowHeaderSubtitle.value = prefs.getBoolean(KEY_HOME_SHOW_HEADER_SUBTITLE, true)
@@ -406,5 +409,11 @@ object AppPreferences {
         downloadProgressFormat.value = format
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit { putString(KEY_DOWNLOAD_PROGRESS_FORMAT, format.name) }
+    }
+
+    fun setAppIcon(context: Context, icon: String) {
+        appIcon.value = icon
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit { putString(KEY_APP_ICON, icon) }
     }
 }
