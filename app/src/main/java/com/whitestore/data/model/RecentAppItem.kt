@@ -1,5 +1,8 @@
 package com.whitestore.data.model
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class RecentAppItem(
     val name: String,
     val packageName: String,

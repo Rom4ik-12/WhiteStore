@@ -33,6 +33,9 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 data class StoreUiState(
     val searchQuery: String = "",
@@ -117,14 +120,39 @@ class StoreViewModel(
     private val _hasCheckedUpdates = MutableStateFlow(false)
     val hasCheckedUpdates: StateFlow<Boolean> = _hasCheckedUpdates.asStateFlow()
 
-    // Recent apps state & cache
-    private val _recentApps = MutableStateFlow<List<RecentAppItem>>(emptyList())
+    // Recent apps state & persistent disk cache
+    private val recentCacheFile by lazy { File(context.filesDir, "recent_apps_cache.json") }
+    private val jsonSerializer = Json { ignoreUnknownKeys = true; isLenient = true; encodeDefaults = true }
+
+    private fun loadRecentAppsFromDisk(): List<RecentAppItem> {
+        return try {
+            if (recentCacheFile.exists()) {
+                val content = recentCacheFile.readText()
+                if (content.isNotBlank()) {
+                    jsonSerializer.decodeFromString<List<RecentAppItem>>(content)
+                } else emptyList()
+            } else emptyList()
+        } catch (e: Exception) {
+            Log.w("StoreViewModel", "Failed to load recent apps cache from disk", e)
+            emptyList()
+        }
+    }
+
+    private fun saveRecentAppsToDisk(items: List<RecentAppItem>) {
+        try {
+            val text = jsonSerializer.encodeToString(items)
+            recentCacheFile.writeText(text)
+        } catch (e: Exception) {
+            Log.w("StoreViewModel", "Failed to save recent apps cache to disk", e)
+        }
+    }
+
+    private val _recentApps = MutableStateFlow<List<RecentAppItem>>(loadRecentAppsFromDisk())
     val recentApps: StateFlow<List<RecentAppItem>> = _recentApps.asStateFlow()
 
     private val _isRecentLoading = MutableStateFlow(false)
     val isRecentLoading: StateFlow<Boolean> = _isRecentLoading.asStateFlow()
-
-    private var hasLoadedRecentApps = false
+    val isRecentSyncing: StateFlow<Boolean> = _isRecentLoading.asStateFlow()
 
     private val activeDownloadJobs = java.util.concurrent.ConcurrentHashMap<String, Job>()
 
@@ -148,9 +176,7 @@ class StoreViewModel(
             installer.packageUpdateTrigger.collect { trigger ->
                 if (trigger > 0) {
                     filterUpdatedApps()
-                    if (hasLoadedRecentApps) {
-                        loadRecentApps(force = true)
-                    }
+                    loadRecentApps(force = false)
                 }
             }
         }
@@ -183,71 +209,124 @@ class StoreViewModel(
     }
 
     fun loadRecentApps(force: Boolean = false) {
-        if (!force && hasLoadedRecentApps) return
+        if (_isRecentLoading.value) return
         viewModelScope.launch {
-            if (_isRecentLoading.value) return@launch
             _isRecentLoading.value = true
             try {
-                val result = withContext(Dispatchers.IO) {
+                withContext(Dispatchers.IO) {
                     val pm = context.packageManager
                     val packages = pm.getInstalledApplications(0)
-                    val candidateItems = packages.filter { (it.flags and ApplicationInfo.FLAG_SYSTEM) == 0 && it.packageName != context.packageName }
-                        .mapNotNull { appInfo ->
-                            try {
-                                val pInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                    pm.getPackageInfo(appInfo.packageName, PackageManager.PackageInfoFlags.of(0))
-                                } else {
-                                    @Suppress("DEPRECATION")
-                                    pm.getPackageInfo(appInfo.packageName, 0)
+                    val installedUserApps = packages.filter {
+                        (it.flags and ApplicationInfo.FLAG_SYSTEM) == 0 && it.packageName != context.packageName
+                    }
+                    val installedPkgMap = installedUserApps.associateBy { it.packageName }
+
+                    val cachedItems = _recentApps.value
+                    val validCachedItems = cachedItems.filter { installedPkgMap.containsKey(it.packageName) }
+                    val existingByPkg = validCachedItems.associateBy { it.packageName }.toMutableMap()
+
+                    var hasChanges = validCachedItems.size != cachedItems.size
+                    val newItemsToNetworkCheck = mutableListOf<String>()
+
+                    for (appInfo in installedUserApps) {
+                        val pkg = appInfo.packageName
+                        val pInfo = try {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                pm.getPackageInfo(pkg, PackageManager.PackageInfoFlags.of(0))
+                            } else {
+                                @Suppress("DEPRECATION")
+                                pm.getPackageInfo(pkg, 0)
+                            }
+                        } catch (e: Exception) {
+                            null
+                        } ?: continue
+
+                        val firstInstall = pInfo.firstInstallTime
+                        val lastUpdate = pInfo.lastUpdateTime
+                        val isUpdated = (lastUpdate - firstInstall) > 60_000L
+                        val mostRecentTime = maxOf(firstInstall, lastUpdate)
+                        val currentVersion = pInfo.versionName ?: ""
+
+                        val existing = existingByPkg[pkg]
+                        if (existing != null) {
+                            if (existing.timestamp != mostRecentTime || existing.versionName != currentVersion) {
+                                val appSize = try {
+                                    File(appInfo.sourceDir).length()
+                                } catch (e: Exception) {
+                                    existing.appSizeBytes
                                 }
                                 val label = pm.getApplicationLabel(appInfo).toString()
-                                val firstInstall = pInfo.firstInstallTime
-                                val lastUpdate = pInfo.lastUpdateTime
-                                val isUpdated = (lastUpdate - firstInstall) > 60_000L
-                                val mostRecentTime = maxOf(firstInstall, lastUpdate)
-                                val appSize = try {
-                                    java.io.File(appInfo.sourceDir).length()
-                                } catch (e: Exception) {
-                                    0L
-                                }
-
-                                RecentAppItem(
+                                val updatedItem = existing.copy(
                                     name = label,
-                                    packageName = appInfo.packageName,
-                                    versionName = pInfo.versionName ?: "",
+                                    versionName = currentVersion,
                                     firstInstallTime = firstInstall,
                                     lastUpdateTime = lastUpdate,
                                     isUpdated = isUpdated,
                                     timestamp = mostRecentTime,
-                                    isInRuStore = false,
                                     appSizeBytes = appSize
                                 )
+                                existingByPkg[pkg] = updatedItem
+                                hasChanges = true
+                            }
+                        } else {
+                            val label = pm.getApplicationLabel(appInfo).toString()
+                            val appSize = try {
+                                File(appInfo.sourceDir).length()
                             } catch (e: Exception) {
-                                null
+                                0L
                             }
+                            val newItem = RecentAppItem(
+                                name = label,
+                                packageName = pkg,
+                                versionName = currentVersion,
+                                firstInstallTime = firstInstall,
+                                lastUpdateTime = lastUpdate,
+                                isUpdated = isUpdated,
+                                timestamp = mostRecentTime,
+                                isInRuStore = false,
+                                appSizeBytes = appSize
+                            )
+                            existingByPkg[pkg] = newItem
+                            newItemsToNetworkCheck.add(pkg)
+                            hasChanges = true
                         }
-                        .sortedByDescending { it.timestamp }
+                    }
 
-                    // Immediately emit candidate items so list opens in milliseconds without waiting for network
-                    _recentApps.value = candidateItems
-                    hasLoadedRecentApps = true
-                    _isRecentLoading.value = false
+                    var updatedList = existingByPkg.values.sortedByDescending { it.timestamp }
+                    if (hasChanges || cachedItems.isEmpty()) {
+                        _recentApps.value = updatedList
+                        saveRecentAppsToDisk(updatedList)
+                    }
 
-                    val semaphore = Semaphore(6)
-                    val checkedItems = candidateItems.map { item ->
-                        async {
-                            val inStore = semaphore.withPermit {
-                                isPackageInRuStore(item.packageName)
+                    // Check RuStore status only for new items or items that haven't been checked yet
+                    val needRuStoreCheck = if (force) {
+                        updatedList.filter { !it.isInRuStore }
+                    } else {
+                        updatedList.filter { newItemsToNetworkCheck.contains(it.packageName) }
+                    }
+
+                    if (needRuStoreCheck.isNotEmpty()) {
+                        val semaphore = Semaphore(6)
+                        val checkedMap = needRuStoreCheck.map { item ->
+                            async {
+                                val inStore = semaphore.withPermit {
+                                    isPackageInRuStore(item.packageName)
+                                }
+                                item.packageName to inStore
                             }
-                            item.copy(isInRuStore = inStore)
-                        }
-                    }.awaitAll()
+                        }.awaitAll().toMap()
 
-                    checkedItems
+                        updatedList = updatedList.map { item ->
+                            val inStore = checkedMap[item.packageName]
+                            if (inStore != null) item.copy(isInRuStore = inStore) else item
+                        }
+
+                        _recentApps.value = updatedList
+                        saveRecentAppsToDisk(updatedList)
+                    }
                 }
-                _recentApps.value = result
             } catch (e: Exception) {
-                // ignore
+                Log.e("StoreViewModel", "Error syncing recent apps", e)
             } finally {
                 _isRecentLoading.value = false
             }

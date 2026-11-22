@@ -175,42 +175,52 @@ fun RecentAppsScreen(
             )
         }
     ) { innerPadding ->
-        Box(
+        Column(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
         ) {
-            if (isLoading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    ContainedLoadingIndicator()
-                }
-            } else if (filteredList.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = when (selectedFilter) {
-                            RecentAppsFilter.ALL -> if (ruStoreOnlyPref) "Нет приложений из RuStore за этот период" else "Нет событий за этот период"
-                            RecentAppsFilter.UPDATED -> "Обновленные приложения не найдены"
-                            RecentAppsFilter.INSTALLED -> "Установленные приложения не найдены"
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(filteredList, key = { it.packageName }) { app ->
+            // Subtle mini-progress-bar at the top when background sync is running
+            if (isLoading && appsList.isNotEmpty()) {
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth().height(3.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                )
+            }
+
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                if (isLoading && appsList.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        ContainedLoadingIndicator()
+                    }
+                } else if (filteredList.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = when (selectedFilter) {
+                                RecentAppsFilter.ALL -> if (ruStoreOnlyPref) "Нет приложений из RuStore за этот период" else "Нет событий за этот период"
+                                RecentAppsFilter.UPDATED -> "Обновленные приложения не найдены"
+                                RecentAppsFilter.INSTALLED -> "Установленные приложения не найдены"
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(filteredList, key = { it.packageName }) { app ->
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -359,4 +369,5 @@ fun RecentAppsScreen(
             }
         }
     }
+}
 }
